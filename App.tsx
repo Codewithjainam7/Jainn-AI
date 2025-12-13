@@ -36,42 +36,57 @@ const App: React.FC = () => {
     // Initialize auth
     initializeAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session);
-      
-      if (event === 'SIGNED_IN' && session?.user) {
-        await loadUserProfile(session.user.id, session.user.email || '');
-        setCurrentPage('chat');
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setCurrentPage('landing');
-      }
-    });
+    // Listen for auth changes ONLY if Supabase is configured
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          await loadUserProfile(session.user.id, session.user.email || '');
+          setCurrentPage('chat');
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setCurrentPage('landing');
+        }
+      });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
   }, []);
 
   const initializeAuth = async () => {
     try {
       setAuthLoading(true);
-      const currentUser = await getCurrentUser();
       
-      if (currentUser) {
-        await loadUserProfile(currentUser.id, currentUser.email || '');
+      // Only check auth if Supabase is configured
+      if (supabase) {
+        const currentUser = await getCurrentUser();
+        
+        if (currentUser) {
+          await loadUserProfile(currentUser.id, currentUser.email || '');
+        } else {
+          // Check legacy localStorage for guest users
+          const savedUser = localStorage.getItem('jainnUser');
+          if (savedUser) {
+            const legacyUser = JSON.parse(savedUser);
+            // Only restore guest users
+            if (legacyUser.tier === 'guest') {
+              setUser(legacyUser);
+            } else {
+              // Remove old non-guest data
+              localStorage.removeItem('jainnUser');
+            }
+          }
+        }
       } else {
-        // Check legacy localStorage for guest users
+        // No Supabase - check for guest users
         const savedUser = localStorage.getItem('jainnUser');
         if (savedUser) {
           const legacyUser = JSON.parse(savedUser);
-          // Only restore guest users
           if (legacyUser.tier === 'guest') {
             setUser(legacyUser);
-          } else {
-            // Remove old non-guest data
-            localStorage.removeItem('jainnUser');
           }
         }
       }
@@ -136,8 +151,10 @@ const App: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (supabase) {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+      }
       
       localStorage.removeItem('jainnUser');
       setUser(null);
