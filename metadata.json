@@ -1,0 +1,7 @@
+{
+  "name": "Jainn AI 3.0",
+  "description": "A production-ready multi-agent AI chat platform with iOS 26 design, referee system, and tiered pricing.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
