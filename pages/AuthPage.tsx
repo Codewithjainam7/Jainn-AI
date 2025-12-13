@@ -38,7 +38,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     setTimeout(() => {
       setIsLogin(mode);
       setIsAnimating(false);
-      // Reset fields
       setPassword('');
       setConfirmPassword('');
     }, 300);
@@ -50,6 +49,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     setLoading(true);
 
     try {
+      // Check if Supabase is configured
+      if (!supabase) {
+        setError('Authentication is not configured. Please use Guest mode.');
+        setLoading(false);
+        return;
+      }
+
       if (!isLogin) {
         // Sign Up
         if (password !== confirmPassword) {
@@ -75,7 +81,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
         if (signUpError) throw signUpError;
 
         if (data.user) {
-          // Show success message
           alert('Check your email to confirm your account!');
           setIsLogin(true);
         }
@@ -89,10 +94,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
         if (signInError) throw signInError;
 
         if (data.user) {
-          // Boot Animation
           setBooting(true);
           setTimeout(() => {
-            // User will be loaded by App.tsx auth listener
             onNavigate('chat');
           }, 3500);
         }
@@ -109,8 +112,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     setError('');
     setLoading(true);
     try {
+      if (!supabase) {
+        setError('Google Sign-In is not configured. Please use Guest mode.');
+        setLoading(false);
+        return;
+      }
+
       await signInWithGoogle();
-      // User will be redirected to Google, then back to the app
       setBooting(true);
     } catch (err: any) {
       console.error('Google auth error:', err);
@@ -275,7 +283,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
               </div>
             )}
             
-            <Button type="submit" className="w-full py-3 text-lg" disabled={loading}>
+            <Button type="submit" className="w-full py-3 text-lg" disabled={loading || !supabase}>
               {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
             </Button>
           </form>
@@ -290,7 +298,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
             <button 
               type="button"
               onClick={handleGoogleAuth}
-              disabled={loading}
+              disabled={loading || !supabase}
               className="w-full py-3 px-4 rounded-xl border border-gray-200 dark:border-white/10 flex items-center justify-center gap-3 hover:bg-gray-50 dark:hover:bg-white/5 transition-all text-gray-700 dark:text-gray-200 font-medium bg-white dark:bg-[#161B22] disabled:opacity-50"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -311,13 +319,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
               Continue as Guest (Limited)
             </button>
           </div>
+
+          {!supabase && (
+            <p className="text-xs text-center text-gray-400 mt-4">
+              💡 Tip: Email/Google sign-in requires Supabase configuration. Guest mode works without setup!
+            </p>
+          )}
         </div>
       </div>
 
       {/* Right Panel - Professional Graphic */}
       <div className="hidden lg:flex w-1/2 bg-[#0D1117] relative overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 to-black"></div>
-        {/* Animated Background Elements */}
         <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
           <div className="absolute top-[10%] left-[20%] w-72 h-72 bg-blue-600/20 rounded-full blur-[100px] animate-pulse"></div>
           <div className="absolute bottom-[20%] right-[10%] w-96 h-96 bg-purple-600/10 rounded-full blur-[120px] animate-pulse delay-1000"></div>
@@ -325,12 +338,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
 
         <div className="relative z-10 p-12 text-center max-w-lg">
           <div className="w-full aspect-square max-w-sm mx-auto mb-12 relative flex items-center justify-center">
-            {/* Central Hub */}
             <div className="relative z-20 w-48 h-48 bg-white/5 backdrop-blur-2xl rounded-[40px] border border-white/10 flex items-center justify-center shadow-2xl animate-[float_6s_ease-in-out_infinite]">
               <Logo size={100} />
             </div>
             
-            {/* Connection Lines */}
             <svg className="absolute inset-0 w-full h-full opacity-30 animate-[spin_30s_linear_infinite]">
               <circle cx="50%" cy="50%" r="48%" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="8 8" className="text-blue-500" />
               <circle cx="50%" cy="50%" r="35%" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" className="text-purple-500" />
