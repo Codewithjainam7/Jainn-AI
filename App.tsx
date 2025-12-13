@@ -4,12 +4,14 @@ import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
 import { Logo } from './components/Logo';
 import { User } from './types';
+import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState<User | null>(null);
   const [isDark, setIsDark] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     // Check local storage for theme
@@ -21,19 +23,88 @@ const App: React.FC = () => {
       document.documentElement.classList.add('dark');
     }
 
-    // Check user session
-    const savedUser = localStorage.getItem('jainnUser');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    // Initialize auth
+    initializeAuth();
 
-    // Initial Boot
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 3500); // 3.5s smooth boot
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      if (event === 'SIGNED_IN' && session?.user) {
+        await loadUserProfile(session.user.id, session.user.email || '');
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setCurrentPage('landing');
+      }
+    });
 
-    return () => clearTimeout(timer);
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const initializeAuth = async () => {
+    try {
+      setAuthLoading(true);
+      const currentUser = await getCurrentUser();
+      
+      if (currentUser) {
+        await loadUserProfile(currentUser.id, currentUser.email || '');
+      } else {
+        // Check legacy localStorage
+        const savedUser = localStorage.getItem('jainnUser');
+        if (savedUser) {
+          const legacyUser = JSON.parse(savedUser);
+          // Migrate to guest if no auth
+          if (legacyUser.tier === 'guest') {
+            setUser(legacyUser);
+          } else {
+            localStorage.removeItem('jainnUser');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+    } finally {
+      setAuthLoading(false);
+      // Initial Boot Animation
+      const timer = setTimeout(() => {
+        setLoading(false);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+  };
+
+  const loadUserProfile = async (userId: string, email: string) => {
+    try {
+      let profile = await getUserProfile(userId);
+      
+      if (!profile) {
+        // Create new profile for first-time users
+        profile = await upsertUserProfile({
+          id: userId,
+          email: email,
+          tier: 'free',
+          tokens_used: 0,
+          images_generated: 0,
+          theme_color: '#3B82F6'
+        });
+      }
+
+      const userData: User = {
+        id: profile.id,
+        email: profile.email,
+        tier: profile.tier as any,
+        tokensUsed: profile.tokens_used,
+        imagesGenerated: profile.images_generated,
+        themeColor: profile.theme_color
+      };
+
+      setUser(userData);
+      setCurrentPage('chat');
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -51,10 +122,20 @@ const App: React.FC = () => {
     setCurrentPage('chat');
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('jainnUser');
-    setUser(null);
-    handleNavigate('landing');
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      localStorage.removeItem('jainnUser');
+      setUser(null);
+      handleNavigate('landing');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback logout
+      setUser(null);
+      handleNavigate('landing');
+    }
   };
 
   const handleNavigate = (page: string) => {
@@ -69,13 +150,15 @@ const App: React.FC = () => {
   };
 
   // Boot Loader
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center z-[100]">
         <div className="animate-pulse-fast">
           <Logo size={120} />
         </div>
-        <p className="text-gray-200 mt-8 text-lg font-medium tracking-wide animate-pulse">Initializing Jainn AI...</p>
+        <p className="text-gray-200 mt-8 text-lg font-medium tracking-wide animate-pulse">
+          {authLoading ? 'Authenticating...' : 'Initializing Jainn AI...'}
+        </p>
         <div className="w-48 h-1 bg-blue-900/30 rounded-full mt-6 overflow-hidden">
           <div className="h-full bg-blue-500 animate-[width_3.5s_ease-out_forwards] w-0"></div>
         </div>
