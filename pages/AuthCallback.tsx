@@ -13,6 +13,15 @@ export const AuthCallback: React.FC = () => {
     // Handle the OAuth callback
     const handleCallback = async () => {
       try {
+        // Check if Supabase is configured
+        if (!supabase) {
+          setError('Supabase is not configured');
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 2000);
+          return;
+        }
+
         // Get the hash from URL (Supabase uses hash-based callback)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
