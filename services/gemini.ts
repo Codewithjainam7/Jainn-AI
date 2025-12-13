@@ -1,49 +1,131 @@
 import { GoogleGenAI } from "@google/genai";
 import { ModelType } from "../types";
 
-// Initialize the client
-// Note: In a real app, you might want to lazily initialize this or handle missing keys gracefully in the UI
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+// Initialize the Gemini client
+const geminiApiKey = import.meta.env.GEMINI_API_KEY || '';
+const openRouterApiKey = import.meta.env.OPENROUTER_API_KEY || '';
+const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
 
+// OpenRouter API Configuration
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+// Model mappings
+const OPENROUTER_MODELS = {
+  [ModelType.LLAMA]: 'meta-llama/llama-3.1-70b-instruct',
+  [ModelType.MISTRAL]: 'mistralai/mistral-large',
+};
+
+/**
+ * Call OpenRouter API for LLaMA and Mistral models
+ */
+async function callOpenRouter(
+  prompt: string,
+  modelType: ModelType,
+  systemInstruction?: string
+): Promise<string> {
+  if (!openRouterApiKey) {
+    throw new Error("OpenRouter API Key not found. Please add OPENROUTER_API_KEY to your environment variables.");
+  }
+
+  const modelName = OPENROUTER_MODELS[modelType];
+  if (!modelName) {
+    throw new Error(`No OpenRouter model mapped for ${modelType}`);
+  }
+
+  try {
+    const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openRouterApiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': window.location.origin,
+        'X-Title': 'Jainn AI 3.0',
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `OpenRouter API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || "No response generated.";
+  } catch (error: any) {
+    console.error(`OpenRouter API error (${modelType}):`, error);
+    throw new Error(error.message || "Failed to generate response from OpenRouter");
+  }
+}
+
+/**
+ * Main function to generate responses from different models
+ */
 export const generateResponse = async (
   prompt: string, 
   modelType: ModelType = ModelType.GEMINI,
   systemInstruction?: string
 ): Promise<string> => {
-  if (!apiKey) throw new Error("API Key not found");
-
-  // Mapping internal model types to Gemini models (Simulating other agents via Gemini for this demo if keys aren't provided)
-  // In a real multi-agent backend, you would call Groq/OpenRouter here.
-  let modelName = 'gemini-2.5-flash'; 
-  let effectiveSystemInstruction = systemInstruction || "";
-
-  if (modelType === ModelType.LLAMA) {
-    effectiveSystemInstruction += " You are LLaMA 3.1, a helpful and efficient AI assistant. Answer with the style and tone of LLaMA.";
-  } else if (modelType === ModelType.MISTRAL) {
-    effectiveSystemInstruction += " You are Mistral Large, a concise and precise AI assistant. Answer with the style of Mistral.";
-  }
-
   try {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: prompt,
-      config: {
-        systemInstruction: effectiveSystemInstruction,
+    // Route to appropriate API based on model type
+    if (modelType === ModelType.GEMINI) {
+      // Use Google Gemini
+      if (!geminiApiKey || !ai) {
+        throw new Error("Gemini API Key not found. Please add GEMINI_API_KEY to your environment variables.");
       }
-    });
-    return response.text || "No response generated.";
-  } catch (error) {
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          systemInstruction: systemInstruction || "You are Gemini, a helpful AI assistant created by Google.",
+        }
+      });
+      
+      return response.text || "No response generated.";
+      
+    } else if (modelType === ModelType.LLAMA) {
+      // Use OpenRouter for LLaMA
+      const instruction = systemInstruction || "You are LLaMA 3.1, a helpful and efficient AI assistant created by Meta. Answer with clarity and precision.";
+      return await callOpenRouter(prompt, ModelType.LLAMA, instruction);
+      
+    } else if (modelType === ModelType.MISTRAL) {
+      // Use OpenRouter for Mistral
+      const instruction = systemInstruction || "You are Mistral Large, a concise and precise AI assistant. Answer with accuracy and efficiency.";
+      return await callOpenRouter(prompt, ModelType.MISTRAL, instruction);
+      
+    } else {
+      throw new Error(`Unknown model type: ${modelType}`);
+    }
+  } catch (error: any) {
     console.error("Error generating content:", error);
-    return "I encountered an error processing your request.";
+    
+    // Return user-friendly error messages
+    if (error.message?.includes('API Key not found')) {
+      return `⚠️ ${error.message}`;
+    }
+    return `I encountered an error: ${error.message || 'Please try again.'}`;
   }
 };
 
+/**
+ * Referee AI analyzes multi-agent responses
+ */
 export const generateRefereeAnalysis = async (
   query: string,
   responses: { model: string, text: string }[]
 ): Promise<string> => {
-  if (!apiKey) return "Referee unavailable (No API Key).";
+  if (!geminiApiKey || !ai) {
+    console.warn("Referee unavailable: No Gemini API Key.");
+    return "Referee unavailable (No API Key).";
+  }
 
   const prompt = `
     Analyze the following responses to the user query: "${query}"
@@ -52,9 +134,9 @@ export const generateRefereeAnalysis = async (
     ${responses.map(r => `[${r.model}]: ${r.text}`).join('\n\n')}
     
     Task:
-    1. Select the best response.
-    2. Explain why it is the best in 1 sentence.
-    3. Point out one improvement for the others.
+    1. Select the best response based on accuracy, completeness, and clarity.
+    2. Explain why it is the best in 1-2 sentences.
+    3. Point out one improvement for the other responses.
     
     Keep it brief and constructive.
   `;
@@ -66,15 +148,20 @@ export const generateRefereeAnalysis = async (
     });
     return response.text || "Could not generate analysis.";
   } catch (error) {
+    console.error("Referee analysis error:", error);
     return "Referee system offline.";
   }
 };
 
+/**
+ * Generate images using Gemini's Imagen model
+ */
 export const generateImage = async (prompt: string): Promise<string | null> => {
-  if (!apiKey) throw new Error("API Key not found");
+  if (!geminiApiKey || !ai) {
+    throw new Error("Gemini API Key not found. Image generation requires GEMINI_API_KEY.");
+  }
   
   try {
-    // Using Imagen model for generation
     const response = await ai.models.generateImages({
       model: 'imagen-3.0-generate-001',
       prompt: prompt,
@@ -90,8 +177,8 @@ export const generateImage = async (prompt: string): Promise<string | null> => {
       return `data:image/jpeg;base64,${imageBytes}`;
     }
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Image generation error:", error);
-    throw error;
+    throw new Error(error.message || "Failed to generate image");
   }
 };
