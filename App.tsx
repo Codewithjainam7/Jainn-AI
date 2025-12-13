@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
+import { AuthCallback } from './pages/AuthCallback';
 import { Logo } from './components/Logo';
 import { User } from './types';
 import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
@@ -23,14 +24,25 @@ const App: React.FC = () => {
       document.documentElement.classList.add('dark');
     }
 
+    // Check if we're on the auth callback page
+    const currentPath = window.location.pathname;
+    if (currentPath === '/auth/callback' || window.location.hash.includes('access_token')) {
+      setCurrentPage('auth-callback');
+      setLoading(false);
+      setAuthLoading(false);
+      return; // Don't run other initialization yet
+    }
+
     // Initialize auth
     initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
+      console.log('Auth state changed:', event, session);
+      
       if (event === 'SIGNED_IN' && session?.user) {
         await loadUserProfile(session.user.id, session.user.email || '');
+        setCurrentPage('chat');
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setCurrentPage('landing');
@@ -50,14 +62,15 @@ const App: React.FC = () => {
       if (currentUser) {
         await loadUserProfile(currentUser.id, currentUser.email || '');
       } else {
-        // Check legacy localStorage
+        // Check legacy localStorage for guest users
         const savedUser = localStorage.getItem('jainnUser');
         if (savedUser) {
           const legacyUser = JSON.parse(savedUser);
-          // Migrate to guest if no auth
+          // Only restore guest users
           if (legacyUser.tier === 'guest') {
             setUser(legacyUser);
           } else {
+            // Remove old non-guest data
             localStorage.removeItem('jainnUser');
           }
         }
@@ -70,7 +83,6 @@ const App: React.FC = () => {
       const timer = setTimeout(() => {
         setLoading(false);
       }, 3500);
-      return () => clearTimeout(timer);
     }
   };
 
@@ -187,6 +199,11 @@ const App: React.FC = () => {
           onLogin={handleLogin} 
           onNavigate={handleNavigate} 
         />
+      )}
+
+      {/* Auth Callback Page - For Google OAuth redirect */}
+      {currentPage === 'auth-callback' && (
+        <AuthCallback />
       )}
 
       {/* If we have a user and we are on chat page */}
