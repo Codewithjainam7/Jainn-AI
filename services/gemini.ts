@@ -1,9 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { ModelType } from "../types";
 
-// Initialize the Gemini client
-const geminiApiKey = import.meta.env.GEMINI_API_KEY || '';
-const openRouterApiKey = import.meta.env.OPENROUTER_API_KEY || '';
+// Initialize the Gemini client - USE VITE_ PREFIX
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+const openRouterApiKey = import.meta.env.VITE_OPENROUTER_API_KEY || '';
 const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
 
 // OpenRouter API Configuration
@@ -24,7 +24,7 @@ async function callOpenRouter(
   systemInstruction?: string
 ): Promise<string> {
   if (!openRouterApiKey) {
-    throw new Error("OpenRouter API Key not found. Please add OPENROUTER_API_KEY to your environment variables.");
+    throw new Error("OpenRouter API Key not found. Please add VITE_OPENROUTER_API_KEY to your environment variables.");
   }
 
   const modelName = OPENROUTER_MODELS[modelType];
@@ -78,7 +78,7 @@ export const generateResponse = async (
     if (modelType === ModelType.GEMINI) {
       // Use Google Gemini
       if (!geminiApiKey || !ai) {
-        throw new Error("Gemini API Key not found. Please add GEMINI_API_KEY to your environment variables.");
+        throw new Error("Gemini API Key not found. Please add VITE_GEMINI_API_KEY to your environment variables.");
       }
 
       const response = await ai.models.generateContent({
@@ -158,7 +158,7 @@ export const generateRefereeAnalysis = async (
  */
 export const generateImage = async (prompt: string): Promise<string | null> => {
   if (!geminiApiKey || !ai) {
-    throw new Error("Gemini API Key not found. Image generation requires GEMINI_API_KEY.");
+    throw new Error("Gemini API Key not found. Image generation requires VITE_GEMINI_API_KEY.");
   }
   
   try {
