@@ -17,14 +17,24 @@ export const AuthCallback: React.FC = () => {
           return;
         }
 
-        // Get hash params
+        // IMPROVED: Check both URL params and hash
+        const urlParams = new URLSearchParams(window.location.search);
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        
+        // Check for email confirmation token (sent via email link)
+        const tokenHash = urlParams.get('token_hash');
+        const type = urlParams.get('type');
+        
+        // Check for OAuth tokens (Google sign-in)
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
-        const errorParam = hashParams.get('error');
-        const errorDescription = hashParams.get('error_description');
+        
+        const errorParam = hashParams.get('error') || urlParams.get('error');
+        const errorDescription = hashParams.get('error_description') || urlParams.get('error_description');
 
-        console.log('📦 Hash params:', { 
+        console.log('📦 Auth params:', { 
+          hasTokenHash: !!tokenHash,
+          type,
           hasAccessToken: !!accessToken, 
           hasRefreshToken: !!refreshToken,
           error: errorParam 
@@ -37,6 +47,41 @@ export const AuthCallback: React.FC = () => {
           return;
         }
 
+        // CASE 1: Email verification callback
+        if (type === 'signup' || type === 'email' || tokenHash) {
+          console.log('📧 Processing email verification...');
+          setStatus('Verifying your email...');
+          
+          // Supabase automatically handles the token verification
+          // We just need to check the session after a brief moment
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error('❌ Session error:', sessionError);
+            setError('Email verification failed');
+            setTimeout(() => window.location.href = '/', 3000);
+            return;
+          }
+
+          if (session) {
+            console.log('✅ Email verified, session established');
+            setStatus('Email verified! Redirecting...');
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 1500);
+          } else {
+            console.log('⚠️ No session after verification');
+            setStatus('Verification complete. Please sign in.');
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 2000);
+          }
+          return;
+        }
+
+        // CASE 2: OAuth callback (Google)
         if (accessToken && refreshToken) {
           setStatus('Setting up your session...');
           
@@ -52,15 +97,14 @@ export const AuthCallback: React.FC = () => {
             return;
           }
 
-          console.log('✅ Session established, redirecting...');
+          console.log('✅ OAuth session established, redirecting...');
           setStatus('Success! Redirecting...');
           
-          // Wait a bit for session to fully establish
           setTimeout(() => {
             window.location.href = '/';
           }, 1000);
         } else {
-          console.log('⚠️ No tokens found, redirecting home');
+          console.log('⚠️ No auth tokens found, redirecting home');
           setStatus('Redirecting...');
           setTimeout(() => window.location.href = '/', 1000);
         }
