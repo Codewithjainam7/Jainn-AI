@@ -12,7 +12,6 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState<User | null>(null);
   const [isDark, setIsDark] = useState(true);
-  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     // Check local storage for theme
@@ -26,84 +25,76 @@ const App: React.FC = () => {
 
     // Check if we're on the auth callback page
     const currentPath = window.location.pathname;
-    if (currentPath === '/auth/callback' || window.location.hash.includes('access_token')) {
+    const currentHash = window.location.hash;
+    
+    if (currentPath === '/auth/callback' || currentHash.includes('access_token')) {
       setCurrentPage('auth-callback');
       setLoading(false);
-      setAuthLoading(false);
-      return; // Don't run other initialization yet
+      return;
     }
 
-    // Initialize auth
+    // Initialize auth with timeout
     initializeAuth();
-
-    // Listen for auth changes ONLY if Supabase is configured
-    if (supabase) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('Auth state changed:', event, session);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          await loadUserProfile(session.user.id, session.user.email || '');
-          setCurrentPage('chat');
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setCurrentPage('landing');
-        }
-      });
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
   }, []);
 
   const initializeAuth = async () => {
-  try {
-    setAuthLoading(true);
+    console.log('🔐 Starting auth initialization...');
     
-    // Add timeout for auth check
-    const authTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Auth timeout')), 5000)
-    );
-    
-    // Only check auth if Supabase is configured
-    if (supabase) {
-      try {
-        const currentUser = await Promise.race([
-          getCurrentUser(),
-          authTimeout
-        ]);
+    try {
+      // Only check auth if Supabase is configured
+      if (supabase) {
+        console.log('✅ Supabase configured, checking session...');
         
-        if (currentUser) {
-          await loadUserProfile(currentUser.id, currentUser.email || '');
+        // Set a timeout for auth check
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth timeout')), 3000)
+        );
+        
+        try {
+          const currentUser = await Promise.race([
+            getCurrentUser(),
+            timeoutPromise
+          ]);
+          
+          if (currentUser) {
+            console.log('✅ User session found:', currentUser.email);
+            await loadUserProfile(currentUser.id, currentUser.email || '');
+            setCurrentPage('chat');
+          } else {
+            console.log('ℹ️ No active session');
+          }
+        } catch (authError) {
+          console.warn('⚠️ Auth check timed out or failed:', authError);
         }
-      } catch (authError) {
-        console.warn('Auth check failed or timed out:', authError);
-        // Continue without auth - allow guest mode
+      } else {
+        console.log('ℹ️ Supabase not configured - using guest mode only');
       }
-    }
-    
-    // Check for guest users in localStorage
-    const savedUser = localStorage.getItem('jainnUser');
-    if (savedUser && !user) {
-      try {
-        const legacyUser = JSON.parse(savedUser);
-        if (legacyUser.tier === 'guest') {
-          setUser(legacyUser);
+      
+      // Check for guest users in localStorage
+      const savedUser = localStorage.getItem('jainnUser');
+      if (savedUser && !user) {
+        try {
+          const legacyUser = JSON.parse(savedUser);
+          if (legacyUser.tier === 'guest') {
+            console.log('✅ Guest user restored from localStorage');
+            setUser(legacyUser);
+            setCurrentPage('chat');
+          }
+        } catch (e) {
+          console.error('Failed to parse saved user:', e);
+          localStorage.removeItem('jainnUser');
         }
-      } catch (e) {
-        console.error('Failed to parse saved user:', e);
       }
+    } catch (error) {
+      console.error('❌ Auth initialization error:', error);
+    } finally {
+      // Always show the page after initialization
+      console.log('✅ Auth initialization complete');
+      setTimeout(() => {
+        setLoading(false);
+      }, 1500); // Reduced to 1.5s
     }
-  } catch (error) {
-    console.error('Auth initialization error:', error);
-  } finally {
-    setAuthLoading(false);
-    // Initial Boot Animation
-    setTimeout(() => {
-      setLoading(false);
-    }, 3500);
-  }
-};
+  };
 
   const loadUserProfile = async (userId: string, email: string) => {
     try {
@@ -131,7 +122,6 @@ const App: React.FC = () => {
       };
 
       setUser(userData);
-      setCurrentPage('chat');
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
@@ -149,6 +139,7 @@ const App: React.FC = () => {
   };
 
   const handleLogin = (userData: User) => {
+    console.log('✅ User logged in:', userData.email);
     setUser(userData);
     setCurrentPage('chat');
   };
@@ -162,38 +153,33 @@ const App: React.FC = () => {
       
       localStorage.removeItem('jainnUser');
       setUser(null);
-      handleNavigate('landing');
+      setCurrentPage('landing');
     } catch (error) {
       console.error('Logout error:', error);
       // Fallback logout
+      localStorage.removeItem('jainnUser');
       setUser(null);
-      handleNavigate('landing');
+      setCurrentPage('landing');
     }
   };
 
   const handleNavigate = (page: string) => {
-    if (page === 'landing') {
-      // Trigger boot animation when going home
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-      }, 3500);
-    }
+    console.log('📍 Navigating to:', page);
     setCurrentPage(page);
   };
 
-  // Boot Loader
-  if (loading || authLoading) {
+  // Boot Loader - Only show on initial load
+  if (loading) {
     return (
       <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center z-[100]">
         <div className="animate-pulse-fast">
           <Logo size={120} />
         </div>
         <p className="text-gray-200 mt-8 text-lg font-medium tracking-wide animate-pulse">
-          {authLoading ? 'Authenticating...' : 'Initializing Jainn AI...'}
+          Initializing Jainn AI...
         </p>
         <div className="w-48 h-1 bg-blue-900/30 rounded-full mt-6 overflow-hidden">
-          <div className="h-full bg-blue-500 animate-[width_3.5s_ease-out_forwards] w-0"></div>
+          <div className="h-full bg-blue-500 animate-[width_1.5s_ease-out_forwards] w-0"></div>
         </div>
         <style>{`
           @keyframes width {
@@ -215,25 +201,37 @@ const App: React.FC = () => {
         />
       )}
       
-      {currentPage === 'login' && !user && (
+      {currentPage === 'login' && (
         <AuthPage 
           onLogin={handleLogin} 
           onNavigate={handleNavigate} 
         />
       )}
 
-      {/* Auth Callback Page - For Google OAuth redirect */}
       {currentPage === 'auth-callback' && (
         <AuthCallback />
       )}
 
-      {/* If we have a user and we are on chat page */}
       {currentPage === 'chat' && user && (
         <ChatPage 
           user={user} 
           onLogout={handleLogout}
           onHome={() => handleNavigate('landing')} 
         />
+      )}
+
+      {/* Fallback - if somehow on chat page without user */}
+      {currentPage === 'chat' && !user && (
+        <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center">
+          <Logo size={80} />
+          <p className="text-gray-400 mt-4">No user session found</p>
+          <button 
+            onClick={() => handleNavigate('landing')}
+            className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go Home
+          </button>
+        </div>
       )}
     </>
   );
