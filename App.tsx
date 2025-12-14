@@ -3,12 +3,14 @@ import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
 import { AuthCallback } from './pages/AuthCallback';
+import { BootAnimation } from './components/BootAnimation';
 import { Logo } from './components/Logo';
 import { User } from './types';
 import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [showBootAnimation, setShowBootAnimation] = useState(false);
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState<User | null>(null);
   const [isDark, setIsDark] = useState(true);
@@ -59,7 +61,11 @@ const App: React.FC = () => {
           if (currentUser) {
             console.log('✅ User session found:', currentUser.email);
             await loadUserProfile(currentUser.id, currentUser.email || '');
-            setCurrentPage('chat');
+            setShowBootAnimation(true);
+            setTimeout(() => {
+              setCurrentPage('chat');
+              setShowBootAnimation(false);
+            }, 3500);
           } else {
             console.log('ℹ️ No active session');
           }
@@ -78,7 +84,11 @@ const App: React.FC = () => {
           if (legacyUser.tier === 'guest') {
             console.log('✅ Guest user restored from localStorage');
             setUser(legacyUser);
-            setCurrentPage('chat');
+            setShowBootAnimation(true);
+            setTimeout(() => {
+              setCurrentPage('chat');
+              setShowBootAnimation(false);
+            }, 3500);
           }
         } catch (e) {
           console.error('Failed to parse saved user:', e);
@@ -92,7 +102,7 @@ const App: React.FC = () => {
       console.log('✅ Auth initialization complete');
       setTimeout(() => {
         setLoading(false);
-      }, 1500); // Reduced to 1.5s
+      }, 1500);
     }
   };
 
@@ -108,7 +118,8 @@ const App: React.FC = () => {
           tier: 'free',
           tokens_used: 0,
           images_generated: 0,
-          theme_color: '#3B82F6'
+          theme_color: '#3B82F6',
+          display_name: email.split('@')[0]
         });
       }
 
@@ -118,7 +129,8 @@ const App: React.FC = () => {
         tier: profile.tier as any,
         tokensUsed: profile.tokens_used,
         imagesGenerated: profile.images_generated,
-        themeColor: profile.theme_color
+        themeColor: profile.theme_color,
+        displayName: profile.display_name
       };
 
       setUser(userData);
@@ -141,7 +153,11 @@ const App: React.FC = () => {
   const handleLogin = (userData: User) => {
     console.log('✅ User logged in:', userData.email);
     setUser(userData);
-    setCurrentPage('chat');
+    setShowBootAnimation(true);
+    setTimeout(() => {
+      setCurrentPage('chat');
+      setShowBootAnimation(false);
+    }, 3500);
   };
 
   const handleLogout = async () => {
@@ -190,6 +206,11 @@ const App: React.FC = () => {
     );
   }
 
+  // Show boot animation when transitioning to chat
+  if (showBootAnimation) {
+    return <BootAnimation onComplete={() => setShowBootAnimation(false)} />;
+  }
+
   // Router Logic
   return (
     <>
@@ -216,7 +237,8 @@ const App: React.FC = () => {
         <ChatPage 
           user={user} 
           onLogout={handleLogout}
-          onHome={() => handleNavigate('landing')} 
+          onHome={() => handleNavigate('landing')}
+          onUpdateUser={setUser}
         />
       )}
 
