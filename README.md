@@ -441,7 +441,7 @@ Have an idea? [Create a feature request](https://github.com/yourusername/jainn-a
 
 ## 📝 **Changelog**
 
-### **v3.0.0** - December 2024
+### **v3.0.0** - December 2025
 - 🎉 Initial public release
 - ✨ Multi-agent collaboration system
 - 🏆 Referee AI implementation
@@ -459,7 +459,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ```
 MIT License
 
-Copyright (c) 2024 Jainn AI
+Copyright (c) 2025 Jainn AI
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -519,6 +519,6 @@ If you find Jainn AI useful, please consider:
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=150&section=footer" />
 
-**Made with 💙 in 2024**
+**Made with 💙 in 2025**
 
 </div>
