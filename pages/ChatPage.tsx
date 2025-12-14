@@ -533,8 +533,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           </div>
         </main>
 
-        // Settings Modal - Add this inside ChatPage component after Input Area
-
 {/* Settings Modal - FIXED */}
 {settingsOpen && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in overflow-hidden">
@@ -762,6 +760,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
     </div>
   </div>
 )}
+      </div>
+    </>
+  );
+};
 
 {/* Logout Confirmation Modal */}
 {logoutConfirmOpen && (
