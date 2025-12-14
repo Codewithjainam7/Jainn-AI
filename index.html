@@ -1,84 +1,70 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+<!doctype html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Jainn AI 3.0</title>
-    <meta name="description" content="Multi-Agent AI Platform" />
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%233B82F6;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%236366F1;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23g)' /%3E%3Cpath d='M12 10h8v2h-8z M12 15h8v2h-8z M12 20h5v2h-5z' fill='white' opacity='0.9'/%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jainn AI - Multi-Agent AI Platform</title>
+    <meta name="description" content="Experience the power of multiple AI agents working together. Chat with Gemini, LLaMA, and Mistral in one seamless interface." />
     
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Jainn AI - Multi-Agent AI Platform" />
+    <meta property="og:description" content="Experience the power of multiple AI agents working together." />
     
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="Jainn AI - Multi-Agent AI Platform" />
+    <meta property="twitter:description" content="Experience the power of multiple AI agents working together." />
     
-    <!-- Tailwind Config -->
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              primary: {
-                DEFAULT: '#2563EB',
-                light: '#3B82F6',
-                dark: '#1D4ED8',
-              },
-              dark: {
-                bg: '#0D1117',
-                surface: '#161B22',
-              }
-            },
-            animation: {
-              'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'marquee': 'marquee 30s linear infinite',
-            },
-            keyframes: {
-              marquee: {
-                '0%': { transform: 'translateX(0%)' },
-                '100%': { transform: 'translateX(-100%)' },
-              }
-            }
-          },
-        },
-      }
-    </script>
-    
-    <!-- Custom Styles -->
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
       body {
-        font-family: 'Inter', sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+          'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+          sans-serif;
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background: #0A0E1A;
+        color: white;
       }
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;
+
+      code {
+        font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+          monospace;
       }
-      .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+
+      #root {
+        min-height: 100vh;
+      }
+
+      /* Scrollbar Styles */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
       }
     </style>
-    
-    <!-- Import Map -->
-    <script type="importmap">
-    {
-      "imports": {
-        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-        "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
-        "react/": "https://esm.sh/react@^19.2.3/",
-        "react": "https://esm.sh/react@^19.2.3",
-        "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.39.0"
-      }
-    }
-    </script>
   </head>
-  
-  <body class="bg-gray-50 dark:bg-[#0D1117] text-gray-900 dark:text-gray-100 transition-colors duration-300">
+  <body>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
