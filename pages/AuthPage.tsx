@@ -1,10 +1,53 @@
 import React, { useState } from 'react';
 import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
-import { CustomModal } from '../components/CustomModal';
 import { User, UserTier } from '../types';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase, signInWithGoogle } from '../lib/supabase';
+
+// Inline Custom Modal Component
+const CustomModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+  type?: 'success' | 'error' | 'info' | 'warning';
+}> = ({ isOpen, onClose, title, message, type = 'info' }) => {
+  if (!isOpen) return null;
+
+  const getIconAndColor = () => {
+    switch (type) {
+      case 'success':
+        return { Icon: CheckCircle, iconColor: 'text-green-500', bgColor: 'bg-green-100 dark:bg-green-900/30' };
+      case 'error':
+        return { Icon: AlertCircle, iconColor: 'text-red-500', bgColor: 'bg-red-100 dark:bg-red-900/30' };
+      case 'warning':
+        return { Icon: AlertCircle, iconColor: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' };
+      default:
+        return { Icon: Mail, iconColor: 'text-blue-500', bgColor: 'bg-blue-100 dark:bg-blue-900/30' };
+    }
+  };
+
+  const { Icon, iconColor, bgColor } = getIconAndColor();
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white dark:bg-[#161B22] rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95">
+        <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center mb-4 mx-auto`}>
+          <Icon size={24} className={iconColor} />
+        </div>
+        <h3 className="text-xl font-bold mb-2 dark:text-white text-center">{title}</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-6 text-center leading-relaxed">{message}</p>
+        <button 
+          onClick={onClose}
+          className="w-full px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-medium transition-colors"
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+};
 
 interface AuthPageProps {
   onLogin: (user: User) => void;
@@ -62,7 +105,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     setLoading(true);
 
     try {
-      // Check if Supabase is configured
       if (!supabase) {
         setError('Authentication is not configured. Please use Guest mode.');
         setLoading(false);
@@ -70,7 +112,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
 
       if (!isLogin) {
-        // Sign Up
         if (password !== confirmPassword) {
           setError("Passwords do not match");
           setLoading(false);
@@ -102,7 +143,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
           setIsLogin(true);
         }
       } else {
-        // Sign In
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -151,7 +191,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
       
       console.log('✅ Redirecting to Google...');
-      // Don't set loading to false - the OAuth redirect will handle navigation
     } catch (err: any) {
       console.error('Google auth error:', err);
       setError(err.message || 'Google sign-in failed');
@@ -206,14 +245,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
               </p>
             </div>
 
-            {/* Error Message */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl text-red-600 dark:text-red-400 text-sm">
                 {error}
               </div>
             )}
 
-            {/* Toggle */}
             <div className="flex bg-gray-200 dark:bg-[#161B22] p-1 rounded-xl mb-8 relative">
               <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-[#0D1117] rounded-lg shadow-sm transition-all duration-300 ${isLogin ? 'left-1' : 'left-[calc(50%+4px)]'}`}></div>
               <button 
@@ -348,7 +385,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
           </div>
         </div>
 
-        {/* Right Panel - Professional Graphic */}
+        {/* Right Panel */}
         <div className="hidden lg:flex w-1/2 bg-[#0D1117] relative overflow-hidden items-center justify-center">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 to-black"></div>
           <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
