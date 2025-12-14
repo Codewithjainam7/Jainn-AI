@@ -50,6 +50,7 @@ export interface ChatSession {
   mode: ChatMode;
   messages: Message[];
   lastUpdated: number;
+  userId: string;
 }
 
 export interface AgentResponse {
