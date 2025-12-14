@@ -24,26 +24,69 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin, onNavigate 
       }
 
       console.log('🔐 Processing OAuth callback...');
+      console.log('📍 Current URL:', window.location.href);
+      console.log('📍 Hash:', window.location.hash);
 
-      // Get the session from the URL
-      const { data: { session }, error } = await supabase.auth.getSession();
+      // Extract tokens from URL hash (Vercel redirects use hash)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
 
-      if (error) throw error;
+      if (accessToken) {
+        console.log('✅ Tokens found in URL hash');
+        
+        // Set the session with the tokens
+        const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        });
 
-      if (!session) {
-        throw new Error('No session found');
+        if (sessionError) throw sessionError;
+
+        if (session) {
+          console.log('✅ Session established:', session.user.email);
+          await loadUserAndNavigate(session.user.id, session.user.email || '');
+        }
+      } else {
+        // Fallback: Try to get session from Supabase
+        console.log('⚠️ No tokens in URL, checking Supabase session...');
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) throw sessionError;
+
+        if (session) {
+          console.log('✅ Existing session found:', session.user.email);
+          await loadUserAndNavigate(session.user.id, session.user.email || '');
+        } else {
+          throw new Error('No authentication tokens found');
+        }
       }
 
-      console.log('✅ Session obtained:', session.user.email);
+    } catch (error: any) {
+      console.error('❌ Auth callback error:', error);
+      setStatus('error');
+      setMessage(error.message || 'Authentication failed. Redirecting...');
 
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        // Clean the URL before redirecting
+        window.history.replaceState({}, document.title, window.location.pathname);
+        onNavigate('login');
+      }, 3000);
+    }
+  };
+
+  const loadUserAndNavigate = async (userId: string, email: string) => {
+    try {
       // Load or create user profile
-      let profile = await getUserProfile(session.user.id);
+      let profile = await getUserProfile(userId);
 
       if (!profile) {
         console.log('Creating new user profile...');
         profile = await upsertUserProfile({
-          id: session.user.id,
-          email: session.user.email,
+          id: userId,
+          email: email,
           tier: 'free',
           tokens_used: 0,
           images_generated: 0,
@@ -63,8 +106,11 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin, onNavigate 
       console.log('✅ User profile loaded:', userData);
 
       setStatus('success');
-      setMessage('Login successful!');
+      setMessage('Login successful! Loading your workspace...');
       setShowBooting(true);
+
+      // Clean the URL hash
+      window.history.replaceState({}, document.title, window.location.pathname);
 
       // Show booting animation then navigate
       setTimeout(() => {
@@ -73,14 +119,8 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin, onNavigate 
       }, 3500);
 
     } catch (error: any) {
-      console.error('❌ Auth callback error:', error);
-      setStatus('error');
-      setMessage(error.message || 'Authentication failed');
-
-      // Redirect to login after 3 seconds
-      setTimeout(() => {
-        onNavigate('login');
-      }, 3000);
+      console.error('❌ Error loading user profile:', error);
+      throw error;
     }
   };
 
@@ -177,6 +217,15 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin, onNavigate 
         <p className="text-gray-600 dark:text-gray-400">
           {message}
         </p>
+
+        {status === 'error' && (
+          <button
+            onClick={() => onNavigate('login')}
+            className="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Back to Login
+          </button>
+        )}
       </div>
     </div>
   );
