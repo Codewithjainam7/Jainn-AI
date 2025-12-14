@@ -7,25 +7,38 @@ import { Logo } from './components/Logo';
 import { User } from './types';
 import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
 
-// Inline Boot Animation Component
-const BootAnimation: React.FC<{onComplete: () => void}> = ({ onComplete }) => {
+// Netflix-style Boot Animation Component
+const NetflixBootAnimation: React.FC<{onComplete: () => void}> = ({ onComplete }) => {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 3500);
+    const timer = setTimeout(onComplete, 2800); // Perfect Netflix timing
     return () => clearTimeout(timer);
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-[#0D1117] flex items-center justify-center z-[100] overflow-hidden">
-      <div className="animate-[zoomIn_3.5s_cubic-bezier(0.65,0,0.35,1)_forwards] flex flex-col items-center">
-        <Logo size={200} />
+    <div className="fixed inset-0 bg-black flex items-center justify-center z-[100] overflow-hidden">
+      <div className="animate-[netflixZoom_2.8s_cubic-bezier(0.4,0,0.2,1)_forwards]">
+        <Logo size={180} />
       </div>
       <style>{`
-        @keyframes zoomIn {
-          0% { transform: scale(0.8); opacity: 0; filter: blur(10px); }
-          20% { transform: scale(1); opacity: 1; filter: blur(0); }
-          50% { transform: scale(1.1); opacity: 1; }
-          80% { transform: scale(1.1); opacity: 1; }
-          100% { transform: scale(40); opacity: 0; }
+        @keyframes netflixZoom {
+          0% { 
+            transform: scale(0.5); 
+            opacity: 0;
+            filter: blur(20px);
+          }
+          30% { 
+            transform: scale(1); 
+            opacity: 1;
+            filter: blur(0);
+          }
+          70% { 
+            transform: scale(1); 
+            opacity: 1;
+          }
+          100% { 
+            transform: scale(15); 
+            opacity: 0;
+          }
         }
       `}</style>
     </div>
@@ -89,7 +102,7 @@ const App: React.FC = () => {
             setTimeout(() => {
               setCurrentPage('chat');
               setShowBootAnimation(false);
-            }, 3500);
+            }, 2800); // Match Netflix animation timing
           } else {
             console.log('ℹ️ No active session');
           }
@@ -112,7 +125,7 @@ const App: React.FC = () => {
             setTimeout(() => {
               setCurrentPage('chat');
               setShowBootAnimation(false);
-            }, 3500);
+            }, 2800);
           }
         } catch (e) {
           console.error('Failed to parse saved user:', e);
@@ -181,7 +194,7 @@ const App: React.FC = () => {
     setTimeout(() => {
       setCurrentPage('chat');
       setShowBootAnimation(false);
-    }, 3500);
+    }, 2800);
   };
 
   const handleLogout = async () => {
@@ -215,7 +228,7 @@ const App: React.FC = () => {
   // Boot Loader - Only show on initial load
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center z-[100]">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[100]">
         <div className="animate-pulse-fast">
           <Logo size={120} />
         </div>
@@ -234,9 +247,9 @@ const App: React.FC = () => {
     );
   }
 
-  // Show boot animation when transitioning to chat
+  // Show Netflix-style boot animation when transitioning to chat
   if (showBootAnimation) {
-    return <BootAnimation onComplete={() => setShowBootAnimation(false)} />;
+    return <NetflixBootAnimation onComplete={() => setShowBootAnimation(false)} />;
   }
 
   // Router Logic
