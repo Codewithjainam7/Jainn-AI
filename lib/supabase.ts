@@ -3,8 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Only create client if both values exist
-export const supabase = (supabaseUrl && supabaseAnonKey) 
+// Only create client if both values exist AND are not empty or 'undefined' strings
+export const supabase = (
+  supabaseUrl && 
+  supabaseAnonKey && 
+  supabaseUrl !== 'undefined' && 
+  supabaseAnonKey !== 'undefined' &&
+  supabaseUrl.length > 0 &&
+  supabaseAnonKey.length > 0
+) 
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
