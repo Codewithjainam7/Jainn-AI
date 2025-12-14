@@ -2,8 +2,16 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="utf-8" />
+    
+    <!-- ENHANCED FAVICON - Your company logo -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%233B82F6;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%231D4ED8;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M12 2.25C6.61522 2.25 2.25 6.61522 2.25 12C2.25 17.3848 6.61522 21.75 12 21.75C17.3848 21.75 21.75 17.3848 21.75 12C21.75 9.25164 20.6696 6.73357 18.8891 4.88909' stroke='url(%23g)' stroke-width='2.5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E" />
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%230D1117'/%3E%3Cpath d='M90 56.25C72.46 56.25 56.25 72.46 56.25 90C56.25 107.54 72.46 123.75 90 123.75C107.54 123.75 123.75 107.54 123.75 90C123.75 81.31 120.68 73.21 115.33 66.67' stroke='%233B82F6' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E" />
+    
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#3B82F6" />
+    
     <title>Jainn AI - Multi-Agent AI Platform</title>
     <meta name="description" content="Experience the power of multiple AI agents working together. Chat with Gemini, LLaMA, and Mistral in one seamless interface." />
     
@@ -60,6 +68,28 @@
       .scrollbar-hide {
         -ms-overflow-style: none;
         scrollbar-width: none;
+      }
+      
+      /* Plan-specific locked colors */
+      .locked-feature {
+        position: relative;
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      
+      .locked-feature::after {
+        content: '🔒';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.5rem;
+        z-index: 10;
+      }
+      
+      .locked-overlay {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(251, 146, 60, 0.1) 100%);
+        border: 2px solid rgba(239, 68, 68, 0.3);
       }
     </style>
     
