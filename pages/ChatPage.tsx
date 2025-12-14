@@ -278,7 +278,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
     return false;
   };
 
-  // JSX Render
   // ... (rest of your ChatPage code above this)
 
   // JSX Render
