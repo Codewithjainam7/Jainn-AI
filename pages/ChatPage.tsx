@@ -7,7 +7,7 @@ import { User, ChatMode, Message, ModelType, UserTier, MultiResponse } from '../
 import { generateResponse, generateRefereeAnalysis, generateImage } from '../services/gemini';
 import { supabase, upsertUserProfile } from '../lib/supabase';
 import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Menu, X, CheckCircle, Crown, Home, ChevronDown, Lock, Palette, CreditCard, ShieldCheck, Bell, Globe } from 'lucide-react';
-
+const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 interface ChatPageProps {
   user: User;
   onLogout: () => void;
