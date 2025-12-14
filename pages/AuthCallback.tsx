@@ -2,85 +2,76 @@ import React, { useEffect, useState } from 'react';
 import { Logo } from '../components/Logo';
 import { supabase } from '../lib/supabase';
 
-/**
- * AuthCallback page handles the redirect from Google OAuth
- * This page is shown briefly while Supabase processes the authentication
- */
 export const AuthCallback: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState('Processing authentication...');
 
   useEffect(() => {
-    // Handle the OAuth callback
     const handleCallback = async () => {
+      console.log('🔐 Auth callback triggered');
+      
       try {
-        // Check if Supabase is configured
         if (!supabase) {
-          setError('Supabase is not configured');
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 2000);
+          setError('Authentication service not configured');
+          setTimeout(() => window.location.href = '/', 2000);
           return;
         }
 
-        // Get the hash from URL (Supabase uses hash-based callback)
+        // Get hash params
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const refreshToken = hashParams.get('refresh_token');
         const errorParam = hashParams.get('error');
         const errorDescription = hashParams.get('error_description');
 
+        console.log('📦 Hash params:', { 
+          hasAccessToken: !!accessToken, 
+          hasRefreshToken: !!refreshToken,
+          error: errorParam 
+        });
+
         if (errorParam) {
+          console.error('❌ Auth error:', errorDescription);
           setError(errorDescription || 'Authentication failed');
-          setTimeout(() => {
-            window.location.href = '/';
-          }, 3000);
+          setTimeout(() => window.location.href = '/', 3000);
           return;
         }
 
-        if (accessToken) {
-          // Set the session with the tokens
-          const { data, error: sessionError } = await supabase.auth.setSession({
+        if (accessToken && refreshToken) {
+          setStatus('Setting up your session...');
+          
+          const { error: sessionError } = await supabase.auth.setSession({
             access_token: accessToken,
-            refresh_token: refreshToken || '',
+            refresh_token: refreshToken,
           });
 
           if (sessionError) {
-            console.error('Session error:', sessionError);
+            console.error('❌ Session error:', sessionError);
             setError('Failed to establish session');
-            setTimeout(() => {
-              window.location.href = '/';
-            }, 3000);
+            setTimeout(() => window.location.href = '/', 3000);
             return;
           }
 
-          // Success - redirect to home (App.tsx will handle routing to chat)
-          console.log('Auth successful, redirecting...');
-          window.location.href = '/';
-        } else {
-          // No access token found, redirect to home
-          console.log('No access token, redirecting to home...');
+          console.log('✅ Session established, redirecting...');
+          setStatus('Success! Redirecting...');
+          
+          // Wait a bit for session to fully establish
           setTimeout(() => {
             window.location.href = '/';
-          }, 2000);
+          }, 1000);
+        } else {
+          console.log('⚠️ No tokens found, redirecting home');
+          setStatus('Redirecting...');
+          setTimeout(() => window.location.href = '/', 1000);
         }
       } catch (err) {
-        console.error('Callback error:', err);
+        console.error('❌ Callback error:', err);
         setError('An unexpected error occurred');
-        setTimeout(() => {
-          window.location.href = '/';
-        }, 3000);
+        setTimeout(() => window.location.href = '/', 3000);
       }
     };
 
     handleCallback();
-
-    // Fallback timeout - redirect to home after 10 seconds no matter what
-    const fallbackTimeout = setTimeout(() => {
-      console.log('Fallback redirect triggered');
-      window.location.href = '/';
-    }, 10000);
-
-    return () => clearTimeout(fallbackTimeout);
   }, []);
 
   return (
@@ -101,10 +92,10 @@ export const AuthCallback: React.FC = () => {
       ) : (
         <>
           <p className="text-gray-200 mt-8 text-lg font-medium tracking-wide animate-pulse">
-            Completing sign-in...
+            {status}
           </p>
           <div className="w-48 h-1 bg-blue-900/30 rounded-full mt-6 overflow-hidden">
-            <div className="h-full bg-blue-500 animate-[width_5s_ease-out_infinite] w-0"></div>
+            <div className="h-full bg-blue-500 animate-[width_3s_ease-out_infinite] w-0"></div>
           </div>
         </>
       )}
