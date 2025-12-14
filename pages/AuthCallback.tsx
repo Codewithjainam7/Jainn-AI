@@ -1,232 +1,110 @@
 import React, { useEffect, useState } from 'react';
-import { supabase, getUserProfile, upsertUserProfile } from '../lib/supabase';
-import { User, UserTier } from '../types';
 import { Logo } from '../components/Logo';
+import { supabase } from '../lib/supabase';
 
-interface AuthCallbackProps {
-  onLogin: (user: User) => void;
-  onNavigate: (page: string) => void;
-}
-
-export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin, onNavigate }) => {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('Processing authentication...');
-  const [showBooting, setShowBooting] = useState(false);
+export const AuthCallback: React.FC = () => {
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState('Processing authentication...');
 
   useEffect(() => {
+    const handleCallback = async () => {
+      console.log('🔐 Auth callback triggered');
+      
+      try {
+        if (!supabase) {
+          setError('Authentication service not configured');
+          setTimeout(() => window.location.href = '/', 2000);
+          return;
+        }
+
+        // Get hash params
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const errorParam = hashParams.get('error');
+        const errorDescription = hashParams.get('error_description');
+
+        console.log('📦 Hash params:', { 
+          hasAccessToken: !!accessToken, 
+          hasRefreshToken: !!refreshToken,
+          error: errorParam 
+        });
+
+        if (errorParam) {
+          console.error('❌ Auth error:', errorDescription);
+          setError(errorDescription || 'Authentication failed');
+          setTimeout(() => window.location.href = '/', 3000);
+          return;
+        }
+
+        if (accessToken && refreshToken) {
+          setStatus('Setting up your session...');
+          
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (sessionError) {
+            console.error('❌ Session error:', sessionError);
+            setError('Failed to establish session');
+            setTimeout(() => window.location.href = '/', 3000);
+            return;
+          }
+
+          console.log('✅ Session established, redirecting...');
+          setStatus('Success! Redirecting...');
+          
+          // Wait a bit for session to fully establish
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+        } else {
+          console.log('⚠️ No tokens found, redirecting home');
+          setStatus('Redirecting...');
+          setTimeout(() => window.location.href = '/', 1000);
+        }
+      } catch (err) {
+        console.error('❌ Callback error:', err);
+        setError('An unexpected error occurred');
+        setTimeout(() => window.location.href = '/', 3000);
+      }
+    };
+
     handleCallback();
   }, []);
 
-  const handleCallback = async () => {
-    try {
-      if (!supabase) {
-        throw new Error('Supabase not configured');
-      }
-
-      console.log('🔐 Processing OAuth callback...');
-      console.log('📍 Current URL:', window.location.href);
-      console.log('📍 Hash:', window.location.hash);
-
-      // Extract tokens from URL hash (Vercel redirects use hash)
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-
-      if (accessToken) {
-        console.log('✅ Tokens found in URL hash');
-        
-        // Set the session with the tokens
-        const { data: { session }, error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || '',
-        });
-
-        if (sessionError) throw sessionError;
-
-        if (session) {
-          console.log('✅ Session established:', session.user.email);
-          await loadUserAndNavigate(session.user.id, session.user.email || '');
-        }
-      } else {
-        // Fallback: Try to get session from Supabase
-        console.log('⚠️ No tokens in URL, checking Supabase session...');
-        
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) throw sessionError;
-
-        if (session) {
-          console.log('✅ Existing session found:', session.user.email);
-          await loadUserAndNavigate(session.user.id, session.user.email || '');
-        } else {
-          throw new Error('No authentication tokens found');
-        }
-      }
-
-    } catch (error: any) {
-      console.error('❌ Auth callback error:', error);
-      setStatus('error');
-      setMessage(error.message || 'Authentication failed. Redirecting...');
-
-      // Redirect to login after 3 seconds
-      setTimeout(() => {
-        // Clean the URL before redirecting
-        window.history.replaceState({}, document.title, window.location.pathname);
-        onNavigate('login');
-      }, 3000);
-    }
-  };
-
-  const loadUserAndNavigate = async (userId: string, email: string) => {
-    try {
-      // Load or create user profile
-      let profile = await getUserProfile(userId);
-
-      if (!profile) {
-        console.log('Creating new user profile...');
-        profile = await upsertUserProfile({
-          id: userId,
-          email: email,
-          tier: 'free',
-          tokens_used: 0,
-          images_generated: 0,
-          theme_color: '#3B82F6'
-        });
-      }
-
-      const userData: User = {
-        id: profile.id,
-        email: profile.email,
-        tier: profile.tier as UserTier,
-        tokensUsed: profile.tokens_used,
-        imagesGenerated: profile.images_generated,
-        themeColor: profile.theme_color
-      };
-
-      console.log('✅ User profile loaded:', userData);
-
-      setStatus('success');
-      setMessage('Login successful! Loading your workspace...');
-      setShowBooting(true);
-
-      // Clean the URL hash
-      window.history.replaceState({}, document.title, window.location.pathname);
-
-      // Show booting animation then navigate
-      setTimeout(() => {
-        onLogin(userData);
-        onNavigate('chat');
-      }, 3500);
-
-    } catch (error: any) {
-      console.error('❌ Error loading user profile:', error);
-      throw error;
-    }
-  };
-
-  if (showBooting) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden">
-        <div className="text-center space-y-8 animate-fadeIn">
-          <div className="relative">
-            <div className="w-24 h-24 mx-auto relative animate-float">
-              <Logo size={96} className="drop-shadow-2xl" />
-              <div className="absolute inset-0 bg-blue-500/20 blur-3xl animate-pulse" />
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-shimmer">
-              Jainn AI
-            </h1>
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-            <p className="text-gray-400 text-lg animate-pulse">Initializing AI Agents...</p>
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
-          }
-
-          @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
-          }
-
-          @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
-          }
-
-          .animate-float {
-            animation: float 3s ease-in-out infinite;
-          }
-
-          .animate-shimmer {
-            background-size: 2000px 100%;
-            animation: shimmer 3s linear infinite;
-          }
-
-          .animate-fadeIn {
-            animation: fadeIn 0.8s ease-out;
-          }
-        `}</style>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 dark:from-[#0A0E1A] dark:via-[#0F1419] dark:to-[#0A0E1A] flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-[#0D1117] rounded-2xl shadow-2xl p-8 text-center">
-        <div className="mb-6">
-          <Logo size={64} className="mx-auto mb-4" />
-          
-          {status === 'loading' && (
-            <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-          )}
-          
-          {status === 'success' && (
-            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-          )}
-          
-          {status === 'error' && (
-            <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-          )}
-        </div>
-
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          {status === 'loading' && 'Authenticating...'}
-          {status === 'success' && 'Success!'}
-          {status === 'error' && 'Authentication Failed'}
-        </h2>
-        
-        <p className="text-gray-600 dark:text-gray-400">
-          {message}
-        </p>
-
-        {status === 'error' && (
-          <button
-            onClick={() => onNavigate('login')}
-            className="mt-6 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            Back to Login
-          </button>
-        )}
+    <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center z-[100]">
+      <div className="animate-pulse-fast">
+        <Logo size={120} />
       </div>
+      
+      {error ? (
+        <>
+          <p className="text-red-400 mt-8 text-lg font-medium tracking-wide">
+            {error}
+          </p>
+          <p className="text-gray-400 mt-2 text-sm">
+            Redirecting to home...
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-gray-200 mt-8 text-lg font-medium tracking-wide animate-pulse">
+            {status}
+          </p>
+          <div className="w-48 h-1 bg-blue-900/30 rounded-full mt-6 overflow-hidden">
+            <div className="h-full bg-blue-500 animate-[width_3s_ease-out_infinite] w-0"></div>
+          </div>
+        </>
+      )}
+      
+      <style>{`
+        @keyframes width {
+          to { width: 100%; }
+        }
+      `}</style>
     </div>
   );
 };
