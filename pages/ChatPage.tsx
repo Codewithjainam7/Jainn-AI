@@ -279,6 +279,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
   };
 
   // JSX Render
+  // ... (rest of your ChatPage code above this)
+
+  // JSX Render
   return (
     <>
       <CustomModal
@@ -533,258 +536,259 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           </div>
         </main>
 
-{/* Settings Modal - FIXED */}
-{settingsOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in overflow-hidden">
-    <div className="bg-white dark:bg-[#161B22] rounded-none sm:rounded-[24px] w-full h-full sm:h-auto sm:max-w-5xl sm:my-4 shadow-2xl border-0 sm:border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex flex-col md:flex-row overflow-hidden sm:max-h-[90vh]">
-      
-      {/* Settings Sidebar */}
-      <div className="w-full md:w-64 bg-gray-50 dark:bg-[#0D1117] border-b md:border-r md:border-b-0 border-gray-200 dark:border-white/5 p-4 flex-shrink-0">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold dark:text-white">Settings</h2>
-          <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg dark:text-white transition-colors">
-            <X size={20} />
-          </button>
-        </div>
-        
-        <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide">
-          {[
-            { id: 'profile', icon: <UserIcon size={18} />, label: 'Profile' },
-            { id: 'appearance', icon: <Palette size={18} />, label: 'Appearance' },
-            { id: 'models', icon: <Bot size={18} />, label: 'AI Models' },
-            { id: 'billing', icon: <CreditCard size={18} />, label: 'Billing' },
-            { id: 'privacy', icon: <ShieldCheck size={18} />, label: 'Privacy' },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSettingsTab(tab.id)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-                activeSettingsTab === tab.id 
-                  ? 'bg-blue-500 text-white shadow-md' 
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/5'
-              }`}
-            >
-              {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Settings Content */}
-      <div className="flex-1 flex flex-col relative bg-white dark:bg-[#161B22] overflow-y-auto">
-        <div className="p-4 sm:p-6 lg:p-8">
-          {/* PROFILE TAB */}
-          {activeSettingsTab === 'profile' && (
-            <ProfileSettings 
-              user={user} 
-              userProfile={userProfile} 
-              onSave={handleSaveProfile}
-            />
-          )}
-
-          {/* APPEARANCE TAB */}
-          {activeSettingsTab === 'appearance' && (
-            <div className="space-y-6 max-w-3xl">
-              <div>
-                <h3 className="text-2xl font-bold mb-2 dark:text-white">Appearance</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Customize your Jainn AI experience</p>
-                
-                <div className={`p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 space-y-6 ${isFeatureLocked('custom-theme') ? 'locked-overlay' : ''}`}>
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-sm font-bold dark:text-white">Theme Color</h4>
-                      {isFeatureLocked('custom-theme') && (
-                        <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-1 rounded-full flex items-center gap-1">
-                          <Crown size={12} /> Ultra Only
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-5 sm:grid-cols-8 gap-3">
-                      {['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#6366F1', '#14B8A6'].map((color) => (
-                        <button
-                          key={color}
-                          disabled={isFeatureLocked('custom-theme')}
-                          className={`w-full aspect-square rounded-xl transition-all hover:scale-110 ${
-                            user.themeColor === color ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-[#161B22]' : ''
-                          } ${isFeatureLocked('custom-theme') ? 'cursor-not-allowed opacity-50' : ''}`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-bold dark:text-white mb-4">Chat Density</h4>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      {['Compact', 'Normal', 'Comfortable'].map((density) => (
-                        <button
-                          key={density}
-                          className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:border-blue-500 dark:hover:border-blue-500 transition-colors text-sm font-medium dark:text-white"
-                        >
-                          {density}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+        {/* Settings Modal - FIXED */}
+        {settingsOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in overflow-hidden">
+            <div className="bg-white dark:bg-[#161B22] rounded-none sm:rounded-[24px] w-full h-full sm:h-auto sm:max-w-5xl sm:my-4 shadow-2xl border-0 sm:border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex flex-col md:flex-row overflow-hidden sm:max-h-[90vh]">
+              
+              {/* Settings Sidebar */}
+              <div className="w-full md:w-64 bg-gray-50 dark:bg-[#0D1117] border-b md:border-r md:border-b-0 border-gray-200 dark:border-white/5 p-4 flex-shrink-0">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold dark:text-white">Settings</h2>
+                  <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg dark:text-white transition-colors">
+                    <X size={20} />
+                  </button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* MODELS TAB */}
-          {activeSettingsTab === 'models' && (
-            <div className="space-y-6 max-w-3xl">
-              <div>
-                <h3 className="text-2xl font-bold mb-2 dark:text-white">AI Models</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Configure default model and preferences</p>
                 
-                <div className="space-y-4">
+                <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide">
                   {[
-                    { name: 'Gemini 2.5 Flash', desc: 'Google\'s fastest model', color: 'blue', available: true },
-                    { name: 'LLaMA 3.1 70B', desc: 'Meta\'s open-source powerhouse', color: 'purple', available: true },
-                    { name: 'Mistral Large', desc: 'Efficient and precise', color: 'yellow', available: true },
-                  ].map((model) => (
-                    <div key={model.name} className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full bg-${model.color}-500/20 flex items-center justify-center`}>
-                          <Bot size={20} className={`text-${model.color}-600`} />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold dark:text-white">{model.name}</h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{model.desc}</p>
-                        </div>
-                      </div>
-                      {model.available ? (
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full">Active</span>
-                      ) : (
-                        <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-3 py-1 rounded-full">Unavailable</span>
-                      )}
-                    </div>
+                    { id: 'profile', icon: <UserIcon size={18} />, label: 'Profile' },
+                    { id: 'appearance', icon: <Palette size={18} />, label: 'Appearance' },
+                    { id: 'models', icon: <Bot size={18} />, label: 'AI Models' },
+                    { id: 'billing', icon: <CreditCard size={18} />, label: 'Billing' },
+                    { id: 'privacy', icon: <ShieldCheck size={18} />, label: 'Privacy' },
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveSettingsTab(tab.id)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                        activeSettingsTab === tab.id 
+                          ? 'bg-blue-500 text-white shadow-md' 
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      {tab.icon}
+                      <span className="hidden sm:inline">{tab.label}</span>
+                    </button>
                   ))}
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* BILLING TAB */}
-          {activeSettingsTab === 'billing' && (
-            <div className="space-y-6 max-w-3xl">
-              <div>
-                <h3 className="text-2xl font-bold mb-2 dark:text-white">Billing & Subscription</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage your plan and payment methods</p>
-                
-                <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-blue-500/30 mb-6">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h4 className="text-lg font-bold dark:text-white flex items-center gap-2 mb-1">
-                        {user.tier === 'pro' && <Crown size={20} className="text-yellow-500" />}
-                        {user.tier === 'ultra' && <Crown size={20} className="text-purple-500" />}
-                        {user.tier.toUpperCase()} Plan
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {user.tier === 'free' && 'Upgrade to unlock powerful features'}
-                        {user.tier === 'pro' && 'Next billing: January 14, 2025'}
-                        {user.tier === 'ultra' && 'Next billing: January 14, 2025'}
-                        {user.tier === 'guest' && 'Sign up to save your progress'}
-                      </p>
+              {/* Settings Content */}
+              <div className="flex-1 flex flex-col relative bg-white dark:bg-[#161B22] overflow-y-auto">
+                <div className="p-4 sm:p-6 lg:p-8">
+                  {/* PROFILE TAB */}
+                  {activeSettingsTab === 'profile' && (
+                    <ProfileSettings 
+                      user={user} 
+                      userProfile={userProfile} 
+                      onSave={handleSaveProfile}
+                    />
+                  )}
+
+                  {/* APPEARANCE TAB */}
+                  {activeSettingsTab === 'appearance' && (
+                    <div className="space-y-6 max-w-3xl">
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2 dark:text-white">Appearance</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Customize your Jainn AI experience</p>
+                        
+                        <div className={`p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 space-y-6 ${isFeatureLocked('custom-theme') ? 'locked-overlay' : ''}`}>
+                          <div>
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="text-sm font-bold dark:text-white">Theme Color</h4>
+                              {isFeatureLocked('custom-theme') && (
+                                <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-1 rounded-full flex items-center gap-1">
+                                  <Crown size={12} /> Ultra Only
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-5 sm:grid-cols-8 gap-3">
+                              {['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#6366F1', '#14B8A6'].map((color) => (
+                                <button
+                                  key={color}
+                                  disabled={isFeatureLocked('custom-theme')}
+                                  className={`w-full aspect-square rounded-xl transition-all hover:scale-110 ${
+                                    user.themeColor === color ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-[#161B22]' : ''
+                                  } ${isFeatureLocked('custom-theme') ? 'cursor-not-allowed opacity-50' : ''}`}
+                                  style={{ backgroundColor: color }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <h4 className="text-sm font-bold dark:text-white mb-4">Chat Density</h4>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                              {['Compact', 'Normal', 'Comfortable'].map((density) => (
+                                <button
+                                  key={density}
+                                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:border-blue-500 dark:hover:border-blue-500 transition-colors text-sm font-medium dark:text-white"
+                                >
+                                  {density}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    {user.tier !== 'ultra' && (
-                      <button className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap">
-                        Upgrade Plan
-                      </button>
-                    )}
-                  </div>
+                  )}
+
+                  {/* MODELS TAB */}
+                  {activeSettingsTab === 'models' && (
+                    <div className="space-y-6 max-w-3xl">
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2 dark:text-white">AI Models</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Configure default model and preferences</p>
+                        
+                        <div className="space-y-4">
+                          {[
+                            { name: 'Gemini 2.5 Flash', desc: 'Google\'s fastest model', color: 'blue', available: true },
+                            { name: 'LLaMA 3.1 70B', desc: 'Meta\'s open-source powerhouse', color: 'purple', available: true },
+                            { name: 'Mistral Large', desc: 'Efficient and precise', color: 'yellow', available: true },
+                          ].map((model) => (
+                            <div key={model.name} className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5 flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-full bg-${model.color}-500/20 flex items-center justify-center`}>
+                                  <Bot size={20} className={`text-${model.color}-600`} />
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-bold dark:text-white">{model.name}</h4>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{model.desc}</p>
+                                </div>
+                              </div>
+                              {model.available ? (
+                                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full">Active</span>
+                              ) : (
+                                <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-3 py-1 rounded-full">Unavailable</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* BILLING TAB */}
+                  {activeSettingsTab === 'billing' && (
+                    <div className="space-y-6 max-w-3xl">
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2 dark:text-white">Billing & Subscription</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage your plan and payment methods</p>
+                        
+                        <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-blue-500/30 mb-6">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                            <div>
+                              <h4 className="text-lg font-bold dark:text-white flex items-center gap-2 mb-1">
+                                {user.tier === 'pro' && <Crown size={20} className="text-yellow-500" />}
+                                {user.tier === 'ultra' && <Crown size={20} className="text-purple-500" />}
+                                {user.tier.toUpperCase()} Plan
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {user.tier === 'free' && 'Upgrade to unlock powerful features'}
+                                {user.tier === 'pro' && 'Next billing: January 14, 2025'}
+                                {user.tier === 'ultra' && 'Next billing: January 14, 2025'}
+                                {user.tier === 'guest' && 'Sign up to save your progress'}
+                              </p>
+                            </div>
+                            {user.tier !== 'ultra' && (
+                              <button className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap">
+                                Upgrade Plan
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PRIVACY TAB */}
+                  {activeSettingsTab === 'privacy' && (
+                    <div className="space-y-6 max-w-3xl">
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2 dark:text-white">Privacy & Security</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Control your data and privacy settings</p>
+                        
+                        <div className="space-y-4 mb-6">
+                          <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <Bell size={18} className="text-blue-600 dark:text-blue-400" />
+                                <div>
+                                  <h4 className="text-sm font-bold dark:text-white">Notifications</h4>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Receive updates about your account</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => setNotifications(!notifications)}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${
+                                  notifications ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                              >
+                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                                  notifications ? 'translate-x-6' : 'translate-x-0'
+                                }`} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <Globe size={18} className="text-green-600 dark:text-green-400" />
+                                <div>
+                                  <h4 className="text-sm font-bold dark:text-white">Data Sharing</h4>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Help improve Jainn with usage data</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => setDataSharing(!dataSharing)}
+                                className={`relative w-12 h-6 rounded-full transition-colors ${
+                                  dataSharing ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+                                }`}
+                              >
+                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                                  dataSharing ? 'translate-x-6' : 'translate-x-0'
+                                }`} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* PRIVACY TAB */}
-          {activeSettingsTab === 'privacy' && (
-            <div className="space-y-6 max-w-3xl">
-              <div>
-                <h3 className="text-2xl font-bold mb-2 dark:text-white">Privacy & Security</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Control your data and privacy settings</p>
-                
-                <div className="space-y-4 mb-6">
-                  <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <Bell size={18} className="text-blue-600 dark:text-blue-400" />
-                        <div>
-                          <h4 className="text-sm font-bold dark:text-white">Notifications</h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Receive updates about your account</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setNotifications(!notifications)}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${
-                          notifications ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                      >
-                        <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                          notifications ? 'translate-x-6' : 'translate-x-0'
-                        }`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <Globe size={18} className="text-green-600 dark:text-green-400" />
-                        <div>
-                          <h4 className="text-sm font-bold dark:text-white">Data Sharing</h4>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Help improve Jainn with usage data</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setDataSharing(!dataSharing)}
-                        className={`relative w-12 h-6 rounded-full transition-colors ${
-                          dataSharing ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
-                        }`}
-                      >
-                        <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                          dataSharing ? 'translate-x-6' : 'translate-x-0'
-                        }`} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+        {/* Logout Confirmation Modal - MOVED INSIDE RETURN */}
+        {logoutConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white dark:bg-[#161B22] rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95">
+              <h3 className="text-xl font-bold mb-2 dark:text-white">Confirm Logout</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to log out of your account?</p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setLogoutConfirmOpen(false)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium dark:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={onLogout}
+                  className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-colors"
+                >
+                  Logout
+                </button>
               </div>
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+          </div>
+        )}
+
       </div>
     </>
   );
 };
-
-{/* Logout Confirmation Modal */}
-{logoutConfirmOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-    <div className="bg-white dark:bg-[#161B22] rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95">
-      <h3 className="text-xl font-bold mb-2 dark:text-white">Confirm Logout</h3>
-      <p className="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to log out of your account?</p>
-      <div className="flex gap-3">
-        <button 
-          onClick={() => setLogoutConfirmOpen(false)}
-          className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium dark:text-white transition-colors"
-        >
-          Cancel
-        </button>
-        <button 
-          onClick={onLogout}
-          className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-colors"
-        >
-          Logout
-        </button>
-      </div>
-    </div>
-  </div>
-)}
