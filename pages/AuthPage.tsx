@@ -2,34 +2,13 @@ import React, { useState } from 'react';
 import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { User, UserTier } from '../types';
-import { Mail, Lock, Eye, EyeOff, CheckCircle, X } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { supabase, signInWithGoogle } from '../lib/supabase';
 
 interface AuthPageProps {
   onLogin: (user: User) => void;
   onNavigate: (page: string) => void;
 }
-
-// Custom Toast Component
-const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
-  React.useEffect(() => {
-    const timer = setTimeout(onClose, 4000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] animate-slideDown">
-      <div className={`flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl backdrop-blur-xl ${
-        type === 'success' 
-          ? 'bg-green-500/90 text-white' 
-          : 'bg-red-500/90 text-white'
-      }`}>
-        {type === 'success' ? <CheckCircle size={20} /> : <X size={20} />}
-        <span className="font-medium">{message}</span>
-      </div>
-    </div>
-  );
-};
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -40,7 +19,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
   const [booting, setBooting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Password Strength
@@ -52,7 +30,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     if (/[^A-Za-z0-9]/.test(pass)) strength++;
     return strength;
   };
-
   const strength = getPasswordStrength(password);
 
   const switchMode = (mode: boolean) => {
@@ -66,16 +43,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     }, 300);
   };
 
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-  };
-
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
+      // Check if Supabase is configured
       if (!supabase) {
         setError('Authentication is not configured. Please use Guest mode.');
         setLoading(false);
@@ -83,6 +57,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
 
       if (!isLogin) {
+        // Sign Up
         if (password !== confirmPassword) {
           setError("Passwords do not match");
           setLoading(false);
@@ -106,13 +81,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
         if (signUpError) throw signUpError;
 
         if (data.user) {
-          showToast('Check your email to confirm your account!', 'success');
-          setLoading(false);
-          setTimeout(() => {
-            setIsLogin(true);
-          }, 2000);
+          alert('Check your email to confirm your account!');
+          setIsLogin(true);
         }
       } else {
+        // Sign In
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -121,8 +94,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
         if (signInError) throw signInError;
 
         if (data.user) {
-          showToast('Login successful! Loading...', 'success');
-          setLoading(false);
           setBooting(true);
           setTimeout(() => {
             onNavigate('chat');
@@ -132,40 +103,38 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     } catch (err: any) {
       console.error('Auth error:', err);
       setError(err.message || 'Authentication failed');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleAuth = async () => {
-    setError('');
-    setLoading(true);
-
-    try {
-      if (!supabase) {
-        setError('Google Sign-In is not configured. Please use Guest mode.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('🔐 Initiating Google Sign-In...');
-      setBooting(true);
-      
-      const { data, error } = await signInWithGoogle();
-      
-      if (error) {
-        console.error('❌ Google sign-in error:', error);
-        setBooting(false);
-        throw error;
-      }
-
-      console.log('✅ Redirecting to Google...');
-    } catch (err: any) {
-      console.error('Google auth error:', err);
-      setError(err.message || 'Google sign-in failed');
+  setError('');
+  setLoading(true);
+  
+  try {
+    if (!supabase) {
+      setError('Google Sign-In is not configured. Please use Guest mode.');
       setLoading(false);
-      setBooting(false);
+      return;
     }
-  };
+
+    console.log('🔐 Initiating Google Sign-In...');
+    const { data, error } = await signInWithGoogle();
+    
+    if (error) {
+      console.error('❌ Google sign-in error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Redirecting to Google...');
+    // Don't set booting animation - the OAuth redirect will handle navigation
+  } catch (err: any) {
+    console.error('Google auth error:', err);
+    setError(err.message || 'Google sign-in failed');
+    setLoading(false);
+  }
+};
 
   const handleGuest = () => {
     setBooting(true);
@@ -204,8 +173,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
 
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-[#0D1117]">
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-      
       {/* Left Panel - Form */}
       <div className="w-full lg:w-1/2 p-8 sm:p-12 lg:p-24 flex flex-col justify-center relative">
         <button 
@@ -228,13 +195,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
             </p>
           </div>
 
+          {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl text-red-600 dark:text-red-400 text-sm flex items-start gap-3">
-              <X size={18} className="shrink-0 mt-0.5" />
-              <span>{error}</span>
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl text-red-600 dark:text-red-400 text-sm">
+              {error}
             </div>
           )}
 
+          {/* Toggle */}
           <div className="flex bg-gray-200 dark:bg-[#161B22] p-1 rounded-xl mb-8 relative">
             <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-[#0D1117] rounded-lg shadow-sm transition-all duration-300 ${isLogin ? 'left-1' : 'left-[calc(50%+4px)]'}`}></div>
             <button 
@@ -369,7 +337,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
         </div>
       </div>
 
-      {/* Right Panel - Professional Graphic WITH ORIGINAL ANIMATION */}
+      {/* Right Panel - Professional Graphic */}
       <div className="hidden lg:flex w-1/2 bg-[#0D1117] relative overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 to-black"></div>
         <div className="absolute top-0 right-0 w-full h-full overflow-hidden">
@@ -395,41 +363,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
           </p>
         </div>
       </div>
-
-      <style>{`
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translate(-50%, -20px);
-          }
-          to {
-            opacity: 1;
-            transform: translate(-50%, 0);
-          }
-        }
-
-        @keyframes float {
-          0%, 100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-20px);
-          }
-        }
-
-        .animate-slideDown {
-          animation: slideDown 0.3s ease-out;
-        }
-
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 };
