@@ -3,10 +3,34 @@ import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
 import { AuthCallback } from './pages/AuthCallback';
-import { BootAnimation } from './components/BootAnimation';
 import { Logo } from './components/Logo';
 import { User } from './types';
 import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
+
+// Inline Boot Animation Component
+const BootAnimation: React.FC<{onComplete: () => void}> = ({ onComplete }) => {
+  useEffect(() => {
+    const timer = setTimeout(onComplete, 3500);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="fixed inset-0 bg-[#0D1117] flex items-center justify-center z-[100] overflow-hidden">
+      <div className="animate-[zoomIn_3.5s_cubic-bezier(0.65,0,0.35,1)_forwards] flex flex-col items-center">
+        <Logo size={200} />
+      </div>
+      <style>{`
+        @keyframes zoomIn {
+          0% { transform: scale(0.8); opacity: 0; filter: blur(10px); }
+          20% { transform: scale(1); opacity: 1; filter: blur(0); }
+          50% { transform: scale(1.1); opacity: 1; }
+          80% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(40); opacity: 0; }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -184,6 +208,10 @@ const App: React.FC = () => {
     setCurrentPage(page);
   };
 
+  const handleUpdateUser = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
   // Boot Loader - Only show on initial load
   if (loading) {
     return (
@@ -238,7 +266,7 @@ const App: React.FC = () => {
           user={user} 
           onLogout={handleLogout}
           onHome={() => handleNavigate('landing')}
-          onUpdateUser={setUser}
+          onUpdateUser={handleUpdateUser}
         />
       )}
 
