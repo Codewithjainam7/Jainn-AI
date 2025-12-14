@@ -3,7 +3,8 @@ import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { User, ChatMode, Message, ModelType, UserTier, MultiResponse } from '../types';
 import { generateResponse, generateRefereeAnalysis, generateImage } from '../services/gemini';
-import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Award, Menu, X, Trash2, CheckCircle, Crown, Home, ChevronDown, Lock, User as ProfileIcon, Palette, CreditCard, ShieldCheck, Mail, Calendar, Edit2, Camera } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Award, Menu, X, Trash2, CheckCircle, Crown, Home, ChevronDown, Lock, User as ProfileIcon, Palette, CreditCard, ShieldCheck, Mail, Calendar, Edit2, Camera, Bell, Globe, Eye, Download, AlertCircle } from 'lucide-react';
 
 interface ChatPageProps {
   user: User;
@@ -22,8 +23,33 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState('profile');
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [notifications, setNotifications] = useState(true);
+  const [dataSharing, setDataSharing] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Get user profile with photo on mount
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (supabase && user.id.startsWith('guest_') === false) {
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            setUserProfile({
+              name: authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User',
+              avatar: authUser.user_metadata?.avatar_url || null,
+              email: authUser.email,
+              provider: authUser.app_metadata?.provider || 'email'
+            });
+          }
+        } catch (error) {
+          console.error('Error loading profile:', error);
+        }
+      }
+    };
+    loadUserProfile();
+  }, [user.id]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -164,14 +190,19 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
 
   // Get user initials for avatar
   const getUserInitials = () => {
+    if (userProfile?.name) {
+      const names = userProfile.name.split(' ');
+      if (names.length >= 2) {
+        return (names[0][0] + names[1][0]).toUpperCase();
+      }
+      return userProfile.name.substring(0, 2).toUpperCase();
+    }
     return user.email.substring(0, 2).toUpperCase();
   };
 
   // Get user avatar URL (for Google sign-in users)
   const getUserAvatar = () => {
-    // If user signed in with Google, we could get their profile picture
-    // For now, we'll use a gradient background with initials
-    return null;
+    return userProfile?.avatar || null;
   };
 
   return (
@@ -213,11 +244,15 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
 
           <div className="p-4 border-t border-gray-100 dark:border-white/5">
              <div className="flex items-center gap-3 mb-4 px-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                  {getUserInitials()}
+                <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg overflow-hidden">
+                  {getUserAvatar() ? (
+                    <img src={getUserAvatar()!} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    getUserInitials()
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.email}</p>
+                  <p className="text-sm font-medium truncate">{userProfile?.name || user.email}</p>
                   <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
                     {user.tier === 'pro' && <Crown size={10} className="text-yellow-500" />}
                     {user.tier}
@@ -412,21 +447,21 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
         </div>
       </main>
 
-      {/* RESPONSIVE Settings Modal */}
+      {/* RESPONSIVE Settings Modal - COMPLETE VERSION */}
       {settingsOpen && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in overflow-y-auto">
-            <div className="bg-white dark:bg-[#161B22] rounded-[24px] w-full max-w-5xl my-4 shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in overflow-hidden">
+            <div className="bg-white dark:bg-[#161B22] rounded-none sm:rounded-[24px] w-full h-full sm:h-auto sm:max-w-5xl sm:my-4 shadow-2xl border-0 sm:border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex flex-col md:flex-row overflow-hidden sm:max-h-[90vh]">
                
                {/* Settings Sidebar - Responsive */}
-               <div className="w-full md:w-64 bg-gray-50 dark:bg-[#0D1117] border-b md:border-r md:border-b-0 border-gray-200 dark:border-white/5 p-4 flex flex-col">
+               <div className="w-full md:w-64 bg-gray-50 dark:bg-[#0D1117] border-b md:border-r md:border-b-0 border-gray-200 dark:border-white/5 p-4 flex-shrink-0">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold dark:text-white">Settings</h2>
-                    <button onClick={() => setSettingsOpen(false)} className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full dark:text-white">
+                    <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg dark:text-white transition-colors">
                       <X size={20} />
                     </button>
                   </div>
                   
-                  <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+                  <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide">
                       {[
                           { id: 'profile', icon: <ProfileIcon size={18} />, label: 'Profile' },
                           { id: 'appearance', icon: <Palette size={18} />, label: 'Appearance' },
@@ -452,35 +487,39 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
 
                {/* Settings Content - Scrollable */}
                <div className="flex-1 flex flex-col relative bg-white dark:bg-[#161B22] overflow-y-auto">
-                   <div className="absolute top-4 right-4 hidden md:block">
-                       <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full dark:text-white"><X size={20} /></button>
-                   </div>
-                   
-                   <div className="p-4 sm:p-8">
+                   <div className="p-4 sm:p-6 lg:p-8">
                        {/* PROFILE TAB */}
                        {activeSettingsTab === 'profile' && (
-                           <div className="space-y-6">
+                           <div className="space-y-6 max-w-3xl">
                                <div>
-                                   <h3 className="text-2xl font-bold mb-6 dark:text-white">Profile Settings</h3>
+                                   <h3 className="text-2xl font-bold mb-2 dark:text-white">Profile Settings</h3>
+                                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage your account information and preferences</p>
                                    
                                    {/* Profile Picture */}
                                    <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 mb-6">
-                                       <div className="relative">
-                                           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-xl">
-                                               {getUserInitials()}
+                                       <div className="relative flex-shrink-0">
+                                           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-xl overflow-hidden">
+                                               {getUserAvatar() ? (
+                                                 <img src={getUserAvatar()!} alt="Profile" className="w-full h-full object-cover" />
+                                               ) : (
+                                                 getUserInitials()
+                                               )}
                                            </div>
-                                           <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-lg">
+                                           <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-lg transition-colors">
                                                <Camera size={16} />
                                            </button>
                                        </div>
                                        <div className="flex-1 text-center sm:text-left">
-                                           <h4 className="text-lg font-bold dark:text-white mb-1">{user.email}</h4>
-                                           <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 flex items-center justify-center sm:justify-start gap-2">
+                                           <h4 className="text-lg font-bold dark:text-white mb-1">{userProfile?.name || user.email.split('@')[0]}</h4>
+                                           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">{user.email}</p>
+                                           <p className="text-xs text-gray-400 dark:text-gray-500 mb-3 flex items-center justify-center sm:justify-start gap-2">
                                                {user.tier === 'pro' && <Crown size={14} className="text-yellow-500" />}
+                                               {user.tier === 'ultra' && <Crown size={14} className="text-purple-500" />}
                                                {user.tier.toUpperCase()} Plan
+                                               {userProfile?.provider === 'google' && <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">Google</span>}
                                            </p>
                                            <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 mx-auto sm:mx-0">
-                                               <Edit2 size={12} /> Change Photo
+                                               <Edit2 size={12} /> Edit Profile
                                            </button>
                                        </div>
                                    </div>
@@ -491,9 +530,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
                                            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
                                                <Mail size={14} /> Email Address
                                            </label>
-                                           <div className="flex items-center justify-between">
-                                               <p className="text-sm font-medium dark:text-white">{user.email}</p>
-                                               <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Verify</button>
+                                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                               <p className="text-sm font-medium dark:text-white break-all">{user.email}</p>
+                                               {user.tier !== 'guest' && (
+                                                 <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-2 py-1 rounded-full w-fit">Verified</span>
+                                               )}
                                            </div>
                                        </div>
 
@@ -502,3 +543,357 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
                                                <Calendar size={14} /> Member Since
                                            </label>
                                            <p className="text-sm font-medium dark:text-white">December 2024</p>
+                                       </div>
+
+                                       <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                           <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+                                               <ProfileIcon size={14} /> Display Name
+                                           </label>
+                                           <div className="flex flex-col sm:flex-row gap-2">
+                                               <input 
+                                                 type="text" 
+                                                 defaultValue={userProfile?.name || user.email.split('@')[0]}
+                                                 className="flex-1 px-3 py-2 rounded-lg bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                                 placeholder="Your display name"
+                                               />
+                                               <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors whitespace-nowrap">
+                                                 Update
+                                               </button>
+                                           </div>
+                                       </div>
+
+                                       {/* Usage Stats */}
+                                       <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-500/30">
+                                           <h4 className="text-sm font-bold dark:text-white mb-4 flex items-center gap-2">
+                                             <Award size={16} className="text-blue-600 dark:text-blue-400" />
+                                             Usage Statistics
+                                           </h4>
+                                           <div className="grid grid-cols-2 gap-4">
+                                               <div>
+                                                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Tokens Used</p>
+                                                   <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{user.tokensUsed.toLocaleString()}</p>
+                                                   <p className="text-xs text-gray-500 dark:text-gray-500">
+                                                     {user.tier === 'free' && '/ 5,000 daily'}
+                                                     {user.tier === 'pro' && '/ 50,000 daily'}
+                                                     {user.tier === 'ultra' && 'Unlimited'}
+                                                   </p>
+                                               </div>
+                                               <div>
+                                                   <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Images Generated</p>
+                                                   <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{user.imagesGenerated}</p>
+                                                   <p className="text-xs text-gray-500 dark:text-gray-500">
+                                                     {user.tier === 'free' && '/ 3 daily'}
+                                                     {user.tier === 'pro' && '/ 20 daily'}
+                                                     {user.tier === 'ultra' && '/ 30 daily'}
+                                                   </p>
+                                               </div>
+                                           </div>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                       )}
+
+                       {/* APPEARANCE TAB */}
+                       {activeSettingsTab === 'appearance' && (
+                           <div className="space-y-6 max-w-3xl">
+                               <div>
+                                   <h3 className="text-2xl font-bold mb-2 dark:text-white">Appearance</h3>
+                                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Customize your Jainn AI experience</p>
+                                   
+                                   <div className="p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 space-y-6">
+                                       <div>
+                                           <h4 className="text-sm font-bold dark:text-white mb-4">Theme Color</h4>
+                                           <div className="grid grid-cols-5 sm:grid-cols-8 gap-3">
+                                               {['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#6366F1', '#14B8A6'].map((color) => (
+                                                   <button
+                                                       key={color}
+                                                       className={`w-full aspect-square rounded-xl transition-all hover:scale-110 ${
+                                                           user.themeColor === color ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-[#161B22]' : ''
+                                                       }`}
+                                                       style={{ backgroundColor: color }}
+                                                   />
+                                               ))}
+                                           </div>
+                                       </div>
+
+                                       <div>
+                                           <h4 className="text-sm font-bold dark:text-white mb-4">Chat Density</h4>
+                                           <div className="flex flex-col sm:flex-row gap-3">
+                                               {['Compact', 'Normal', 'Comfortable'].map((density) => (
+                                                   <button
+                                                       key={density}
+                                                       className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:border-blue-500 dark:hover:border-blue-500 transition-colors text-sm font-medium dark:text-white"
+                                                   >
+                                                       {density}
+                                                   </button>
+                                               ))}
+                                           </div>
+                                       </div>
+
+                                       <div>
+                                           <h4 className="text-sm font-bold dark:text-white mb-4">Font Size</h4>
+                                           <input 
+                                             type="range" 
+                                             min="12" 
+                                             max="18" 
+                                             defaultValue="14"
+                                             className="w-full accent-blue-600"
+                                           />
+                                           <div className="flex justify-between text-xs text-gray-500 mt-2">
+                                               <span>Small</span>
+                                               <span>Medium</span>
+                                               <span>Large</span>
+                                           </div>
+                                       </div>
+                                   </div>
+                               </div>
+                           </div>
+                       )}
+
+                       {/* MODELS TAB */}
+                       {activeSettingsTab === 'models' && (
+                           <div className="space-y-6 max-w-3xl">
+                               <div>
+                                   <h3 className="text-2xl font-bold mb-2 dark:text-white">AI Models</h3>
+                                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Configure default model and preferences</p>
+                                   
+                                   <div className="space-y-4">
+                                       {[
+                                           { name: 'Gemini 2.5 Flash', desc: 'Google\'s fastest model', color: 'blue', available: true },
+                                           { name: 'LLaMA 3.1 70B', desc: 'Meta\'s open-source powerhouse', color: 'purple', available: true },
+                                           { name: 'Mistral Large', desc: 'Efficient and precise', color: 'yellow', available: true },
+                                       ].map((model) => (
+                                           <div key={model.name} className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5 flex items-center justify-between">
+                                               <div className="flex items-center gap-4">
+                                                   <div className={`w-10 h-10 rounded-full bg-${model.color}-500/20 flex items-center justify-center`}>
+                                                       <Bot size={20} className={`text-${model.color}-600`} />
+                                                   </div>
+                                                   <div>
+                                                       <h4 className="text-sm font-bold dark:text-white">{model.name}</h4>
+                                                       <p className="text-xs text-gray-500 dark:text-gray-400">{model.desc}</p>
+                                                   </div>
+                                               </div>
+                                               {model.available ? (
+                                                   <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full">Active</span>
+                                               ) : (
+                                                   <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-3 py-1 rounded-full">Unavailable</span>
+                                               )}
+                                           </div>
+                                       ))}
+                                   </div>
+                               </div>
+                           </div>
+                       )}
+
+                       {/* BILLING TAB */}
+                       {activeSettingsTab === 'billing' && (
+                           <div className="space-y-6 max-w-3xl">
+                               <div>
+                                   <h3 className="text-2xl font-bold mb-2 dark:text-white">Billing & Subscription</h3>
+                                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage your plan and payment methods</p>
+                                   
+                                   <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-blue-500/30 mb-6">
+                                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                                           <div>
+                                               <h4 className="text-lg font-bold dark:text-white flex items-center gap-2 mb-1">
+                                                   {user.tier === 'pro' && <Crown size={20} className="text-yellow-500" />}
+                                                   {user.tier === 'ultra' && <Crown size={20} className="text-purple-500" />}
+                                                   {user.tier.toUpperCase()} Plan
+                                               </h4>
+                                               <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                   {user.tier === 'free' && 'Upgrade to unlock powerful features'}
+                                                   {user.tier === 'pro' && 'Next billing: January 14, 2025'}
+                                                   {user.tier === 'ultra' && 'Next billing: January 14, 2025'}
+                                                   {user.tier === 'guest' && 'Sign up to save your progress'}
+                                               </p>
+                                           </div>
+                                           {user.tier !== 'ultra' && (
+                                               <button className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap">
+                                                   Upgrade Plan
+                                               </button>
+                                           )}
+                                       </div>
+                                   </div>
+
+                                   {user.tier !== 'guest' && user.tier !== 'free' && (
+                                       <div className="space-y-4">
+                                           <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                               <h4 className="text-sm font-bold dark:text-white mb-3 flex items-center gap-2">
+                                                   <CreditCard size={16} />
+                                                   Payment Method
+                                               </h4>
+                                               <div className="flex items-center justify-between">
+                                                   <div className="flex items-center gap-3">
+                                                       <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded flex items-center justify-center text-white text-xs font-bold">
+                                                           VISA
+                                                       </div>
+                                                       <div>
+                                                           <p className="text-sm font-medium dark:text-white">•••• •••• •••• 4242</p>
+                                                           <p className="text-xs text-gray-500">Expires 12/26</p>
+                                                       </div>
+                                                   </div>
+                                                   <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                                                       Update
+                                                   </button>
+                                               </div>
+                                           </div>
+
+                                           <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                               <h4 className="text-sm font-bold dark:text-white mb-3">Billing History</h4>
+                                               <div className="space-y-2 text-sm">
+                                                   <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-white/5">
+                                                       <div>
+                                                           <p className="font-medium dark:text-white">Dec 14, 2024</p>
+                                                           <p className="text-xs text-gray-500">Jainn {user.tier.toUpperCase()} - Monthly</p>
+                                                       </div>
+                                                       <div className="text-right">
+                                                           <p className="font-bold dark:text-white">${user.tier === 'pro' ? '9.00' : '19.00'}</p>
+                                                           <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                                                               <Download size={12} className="inline" /> Receipt
+                                                           </button>
+                                                       </div>
+                                                   </div>
+                                               </div>
+                                           </div>
+                                       </div>
+                                   )}
+                               </div>
+                           </div>
+                       )}
+
+                       {/* PRIVACY TAB */}
+                       {activeSettingsTab === 'privacy' && (
+                           <div className="space-y-6 max-w-3xl">
+                               <div>
+                                   <h3 className="text-2xl font-bold mb-2 dark:text-white">Privacy & Security</h3>
+                                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Control your data and privacy settings</p>
+                                   
+                                   {/* Privacy Settings */}
+                                   <div className="space-y-4 mb-6">
+                                       <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                           <div className="flex items-center justify-between mb-2">
+                                               <div className="flex items-center gap-3">
+                                                   <Bell size={18} className="text-blue-600 dark:text-blue-400" />
+                                                   <div>
+                                                       <h4 className="text-sm font-bold dark:text-white">Notifications</h4>
+                                                       <p className="text-xs text-gray-500 dark:text-gray-400">Receive updates about your account</p>
+                                                   </div>
+                                               </div>
+                                               <button
+                                                   onClick={() => setNotifications(!notifications)}
+                                                   className={`relative w-12 h-6 rounded-full transition-colors ${
+                                                       notifications ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                                                   }`}
+                                               >
+                                                   <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                                                       notifications ? 'translate-x-6' : 'translate-x-0'
+                                                   }`} />
+                                               </button>
+                                           </div>
+                                       </div>
+
+                                       <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                           <div className="flex items-center justify-between mb-2">
+                                               <div className="flex items-center gap-3">
+                                                   <Globe size={18} className="text-green-600 dark:text-green-400" />
+                                                   <div>
+                                                       <h4 className="text-sm font-bold dark:text-white">Data Sharing</h4>
+                                                       <p className="text-xs text-gray-500 dark:text-gray-400">Help improve Jainn with usage data</p>
+                                                   </div>
+                                               </div>
+                                               <button
+                                                   onClick={() => setDataSharing(!dataSharing)}
+                                                   className={`relative w-12 h-6 rounded-full transition-colors ${
+                                                       dataSharing ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+                                                   }`}
+                                               >
+                                                   <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                                                       dataSharing ? 'translate-x-6' : 'translate-x-0'
+                                                   }`} />
+                                               </button>
+                                           </div>
+                                       </div>
+
+                                       <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                           <div className="flex items-center justify-between">
+                                               <div className="flex items-center gap-3">
+                                                   <Eye size={18} className="text-purple-600 dark:text-purple-400" />
+                                                   <div>
+                                                       <h4 className="text-sm font-bold dark:text-white">Chat History</h4>
+                                                       <p className="text-xs text-gray-500 dark:text-gray-400">Save conversations for later</p>
+                                                   </div>
+                                               </div>
+                                               <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                                                   Manage
+                                               </button>
+                                           </div>
+                                       </div>
+                                   </div>
+
+                                   {/* Data Management */}
+                                   <div className="p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-500/30">
+                                       <h4 className="text-sm font-bold dark:text-white mb-4 flex items-center gap-2">
+                                           <AlertCircle size={18} className="text-yellow-600 dark:text-yellow-400" />
+                                           Data Management
+                                       </h4>
+                                       <div className="space-y-3">
+                                           <button className="w-full sm:w-auto px-6 py-2 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 text-sm font-medium dark:text-white transition-colors flex items-center justify-center gap-2">
+                                               <Download size={16} />
+                                               Export My Data
+                                           </button>
+                                           <button className="w-full sm:w-auto px-6 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-200 dark:hover:bg-red-900/50 text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                                               <Trash2 size={16} />
+                                               Delete Account
+                                           </button>
+                                       </div>
+                                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-4">
+                                           Deleting your account will permanently remove all your data and cannot be undone.
+                                       </p>
+                                   </div>
+
+                                   {/* Security Info */}
+                                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-500/30">
+                                       <h4 className="text-sm font-bold dark:text-white mb-2 flex items-center gap-2">
+                                           <ShieldCheck size={16} className="text-blue-600 dark:text-blue-400" />
+                                           Security
+                                       </h4>
+                                       <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+                                           Your data is encrypted end-to-end. We use industry-standard security practices to protect your information. Read our <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">Privacy Policy</a> and <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">Terms of Service</a>.
+                                       </p>
+                                   </div>
+                               </div>
+                           </div>
+                       )}
+                   </div>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {logoutConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-[#161B22] rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95">
+            <h3 className="text-xl font-bold mb-2 dark:text-white">Confirm Logout</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to log out of your account?</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setLogoutConfirmOpen(false)}
+                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium dark:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={onLogout}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
