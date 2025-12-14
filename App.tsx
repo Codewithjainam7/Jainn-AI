@@ -57,49 +57,53 @@ const App: React.FC = () => {
   }, []);
 
   const initializeAuth = async () => {
-    try {
-      setAuthLoading(true);
-      
-      // Only check auth if Supabase is configured
-      if (supabase) {
-        const currentUser = await getCurrentUser();
+  try {
+    setAuthLoading(true);
+    
+    // Add timeout for auth check
+    const authTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Auth timeout')), 5000)
+    );
+    
+    // Only check auth if Supabase is configured
+    if (supabase) {
+      try {
+        const currentUser = await Promise.race([
+          getCurrentUser(),
+          authTimeout
+        ]);
         
         if (currentUser) {
           await loadUserProfile(currentUser.id, currentUser.email || '');
-        } else {
-          // Check legacy localStorage for guest users
-          const savedUser = localStorage.getItem('jainnUser');
-          if (savedUser) {
-            const legacyUser = JSON.parse(savedUser);
-            // Only restore guest users
-            if (legacyUser.tier === 'guest') {
-              setUser(legacyUser);
-            } else {
-              // Remove old non-guest data
-              localStorage.removeItem('jainnUser');
-            }
-          }
         }
-      } else {
-        // No Supabase - check for guest users
-        const savedUser = localStorage.getItem('jainnUser');
-        if (savedUser) {
-          const legacyUser = JSON.parse(savedUser);
-          if (legacyUser.tier === 'guest') {
-            setUser(legacyUser);
-          }
-        }
+      } catch (authError) {
+        console.warn('Auth check failed or timed out:', authError);
+        // Continue without auth - allow guest mode
       }
-    } catch (error) {
-      console.error('Auth initialization error:', error);
-    } finally {
-      setAuthLoading(false);
-      // Initial Boot Animation
-      const timer = setTimeout(() => {
-        setLoading(false);
-      }, 3500);
     }
-  };
+    
+    // Check for guest users in localStorage
+    const savedUser = localStorage.getItem('jainnUser');
+    if (savedUser && !user) {
+      try {
+        const legacyUser = JSON.parse(savedUser);
+        if (legacyUser.tier === 'guest') {
+          setUser(legacyUser);
+        }
+      } catch (e) {
+        console.error('Failed to parse saved user:', e);
+      }
+    }
+  } catch (error) {
+    console.error('Auth initialization error:', error);
+  } finally {
+    setAuthLoading(false);
+    // Initial Boot Animation
+    setTimeout(() => {
+      setLoading(false);
+    }, 3500);
+  }
+};
 
   const loadUserProfile = async (userId: string, email: string) => {
     try {
