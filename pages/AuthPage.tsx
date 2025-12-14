@@ -109,23 +109,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
   };
 
   const handleGoogleAuth = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      if (!supabase) {
-        setError('Google Sign-In is not configured. Please use Guest mode.');
-        setLoading(false);
-        return;
-      }
-
-      await signInWithGoogle();
-      setBooting(true);
-    } catch (err: any) {
-      console.error('Google auth error:', err);
-      setError(err.message || 'Google sign-in failed');
+  setError('');
+  setLoading(true);
+  
+  try {
+    if (!supabase) {
+      setError('Google Sign-In is not configured. Please use Guest mode.');
       setLoading(false);
+      return;
     }
-  };
+
+    console.log('🔐 Initiating Google Sign-In...');
+    const { data, error } = await signInWithGoogle();
+    
+    if (error) {
+      console.error('❌ Google sign-in error:', error);
+      throw error;
+    }
+    
+    console.log('✅ Redirecting to Google...');
+    // Don't set booting animation - the OAuth redirect will handle navigation
+  } catch (err: any) {
+    console.error('Google auth error:', err);
+    setError(err.message || 'Google sign-in failed');
+    setLoading(false);
+  }
+};
 
   const handleGuest = () => {
     setBooting(true);
