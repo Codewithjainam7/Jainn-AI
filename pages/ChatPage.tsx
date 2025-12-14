@@ -3,7 +3,7 @@ import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { User, ChatMode, Message, ModelType, UserTier, MultiResponse } from '../types';
 import { generateResponse, generateRefereeAnalysis, generateImage } from '../services/gemini';
-import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Award, Menu, X, Trash2, CheckCircle, Crown, Home, ChevronDown, Lock, User as ProfileIcon, Palette, CreditCard, ShieldCheck } from 'lucide-react';
+import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Award, Menu, X, Trash2, CheckCircle, Crown, Home, ChevronDown, Lock, User as ProfileIcon, Palette, CreditCard, ShieldCheck, Mail, Calendar, Edit2, Camera } from 'lucide-react';
 
 interface ChatPageProps {
   user: User;
@@ -19,9 +19,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false); // New state for dropdown
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] = useState('appearance'); // 'profile', 'appearance', 'models', 'billing'
+  const [activeSettingsTab, setActiveSettingsTab] = useState('profile');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -34,14 +34,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
   }, [messages, isTyping]);
 
   const handleModeSwitch = (newMode: ChatMode) => {
-      // Check Free Tier Restriction for Multi Mode
       if (user.tier === UserTier.FREE && newMode === ChatMode.MULTI) {
           alert("Multi-Agent Mode is a PRO feature. Upgrade to Jainn Pro to access.");
           return;
       }
 
       if (newMode !== mode) {
-          setMessages([]); // Clear chat history on mode switch
+          setMessages([]);
           setMode(newMode);
       }
   };
@@ -49,13 +48,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
     
-    // Guest Limit Check
     if (user.tier === UserTier.GUEST && messages.length > 10) {
       alert("Guest limit reached. Please sign up.");
       return;
     }
 
-    // Image Gen Constraint: Strict check
     const isImageCmd = input.toLowerCase().startsWith('/image');
     if (isImageCmd) {
         if (mode !== ChatMode.SINGLE) {
@@ -107,7 +104,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
         };
         setMessages(prev => [...prev, aiMsg]);
       } else {
-        // Multi Agent Mode
         const models = [ModelType.GEMINI, ModelType.LLAMA, ModelType.MISTRAL];
         const responses = await Promise.all(models.map(async (m) => {
           return {
@@ -132,7 +128,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
         
         setMessages(prev => [...prev, multiMsg]);
 
-        // Background Referee Analysis
         generateRefereeAnalysis(userMsg.content, responses).then(analysis => {
            console.log("Referee Analysis (Backend):", analysis);
         });
@@ -165,6 +160,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
           }
           return msg;
       }));
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    return user.email.substring(0, 2).toUpperCase();
+  };
+
+  // Get user avatar URL (for Google sign-in users)
+  const getUserAvatar = () => {
+    // If user signed in with Google, we could get their profile picture
+    // For now, we'll use a gradient background with initials
+    return null;
   };
 
   return (
@@ -206,12 +213,15 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
 
           <div className="p-4 border-t border-gray-100 dark:border-white/5">
              <div className="flex items-center gap-3 mb-4 px-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
-                  {user.email[0].toUpperCase()}
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                  {getUserInitials()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{user.email}</p>
-                  <p className="text-xs text-gray-500 uppercase">{user.tier}</p>
+                  <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
+                    {user.tier === 'pro' && <Crown size={10} className="text-yellow-500" />}
+                    {user.tier}
+                  </p>
                 </div>
              </div>
              <div className="flex gap-2">
@@ -230,7 +240,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
                 <Menu size={24} />
               </button>
               
-              {/* Mode Toggle */}
               <div className="flex bg-gray-100 dark:bg-[#161B22] p-1 rounded-lg">
                 <button 
                   onClick={() => handleModeSwitch(ChatMode.MULTI)}
@@ -246,7 +255,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
                 </button>
               </div>
 
-              {/* Model Selector for Single Mode - Fixed Click Behavior */}
               {mode === ChatMode.SINGLE && (
                   <div className="relative">
                       <button 
@@ -404,157 +412,93 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome }) =>
         </div>
       </main>
 
-      {/* New Settings Modal Structure */}
+      {/* RESPONSIVE Settings Modal */}
       {settingsOpen && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="bg-white dark:bg-[#161B22] rounded-[24px] max-w-4xl w-full h-[600px] shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex overflow-hidden">
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in overflow-y-auto">
+            <div className="bg-white dark:bg-[#161B22] rounded-[24px] w-full max-w-5xl my-4 shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
                
-               {/* Settings Sidebar */}
-               <div className="w-64 bg-gray-50 dark:bg-[#0D1117] border-r border-gray-200 dark:border-white/5 p-4 flex flex-col gap-1">
-                  <h2 className="text-xl font-bold dark:text-white mb-6 px-4 mt-2">Settings</h2>
-                  {[
-                      { id: 'profile', icon: <ProfileIcon size={18} />, label: 'Profile' },
-                      { id: 'appearance', icon: <Palette size={18} />, label: 'Appearance' },
-                      { id: 'models', icon: <Bot size={18} />, label: 'AI Models' },
-                      { id: 'billing', icon: <CreditCard size={18} />, label: 'Billing' },
-                      { id: 'privacy', icon: <ShieldCheck size={18} />, label: 'Privacy' },
-                  ].map(tab => (
-                      <button
-                          key={tab.id}
-                          onClick={() => setActiveSettingsTab(tab.id)}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                              activeSettingsTab === tab.id 
-                                  ? 'bg-blue-500 text-white shadow-md' 
-                                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/5'
-                          }`}
-                      >
-                          {tab.icon}
-                          {tab.label}
-                      </button>
-                  ))}
+               {/* Settings Sidebar - Responsive */}
+               <div className="w-full md:w-64 bg-gray-50 dark:bg-[#0D1117] border-b md:border-r md:border-b-0 border-gray-200 dark:border-white/5 p-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold dark:text-white">Settings</h2>
+                    <button onClick={() => setSettingsOpen(false)} className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full dark:text-white">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
+                      {[
+                          { id: 'profile', icon: <ProfileIcon size={18} />, label: 'Profile' },
+                          { id: 'appearance', icon: <Palette size={18} />, label: 'Appearance' },
+                          { id: 'models', icon: <Bot size={18} />, label: 'AI Models' },
+                          { id: 'billing', icon: <CreditCard size={18} />, label: 'Billing' },
+                          { id: 'privacy', icon: <ShieldCheck size={18} />, label: 'Privacy' },
+                      ].map(tab => (
+                          <button
+                              key={tab.id}
+                              onClick={() => setActiveSettingsTab(tab.id)}
+                              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                                  activeSettingsTab === tab.id 
+                                      ? 'bg-blue-500 text-white shadow-md' 
+                                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/5'
+                              }`}
+                          >
+                              {tab.icon}
+                              <span className="hidden sm:inline">{tab.label}</span>
+                          </button>
+                      ))}
+                  </div>
                </div>
 
-               {/* Settings Content */}
-               <div className="flex-1 flex flex-col relative bg-white dark:bg-[#161B22]">
-                   <div className="absolute top-4 right-4">
+               {/* Settings Content - Scrollable */}
+               <div className="flex-1 flex flex-col relative bg-white dark:bg-[#161B22] overflow-y-auto">
+                   <div className="absolute top-4 right-4 hidden md:block">
                        <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full dark:text-white"><X size={20} /></button>
                    </div>
                    
-                   <div className="flex-1 overflow-y-auto p-8">
-                       {activeSettingsTab === 'appearance' && (
-                           <div className="space-y-8">
+                   <div className="p-4 sm:p-8">
+                       {/* PROFILE TAB */}
+                       {activeSettingsTab === 'profile' && (
+                           <div className="space-y-6">
                                <div>
-                                   <h3 className="text-lg font-bold mb-4 dark:text-white">Theme Customization</h3>
-                                   <div className="p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5">
-                                       <div className="flex items-center justify-between mb-4">
-                                           <label className="text-sm font-semibold dark:text-gray-300">Accent Color</label>
-                                           {user.tier === 'free' && <span className="text-[10px] bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded-full font-bold border border-blue-500/20">PRO FEATURE</span>}
-                                       </div>
-                                       <div className="flex gap-3">
-                                           <div className="w-10 h-10 rounded-full bg-blue-600 ring-2 ring-offset-2 ring-blue-500 cursor-pointer shadow-sm"></div>
-                                           {/* Locked Colors */}
-                                           {['#7C3AED', '#EC4899', '#10B981', '#F59E0B'].map(c => (
-                                               <div key={c} className="w-10 h-10 rounded-full opacity-40 cursor-not-allowed relative flex items-center justify-center border border-transparent hover:border-gray-400" style={{ backgroundColor: c }}>
-                                                   <Lock className="w-3 h-3 text-white" />
-                                               </div>
-                                           ))}
-                                       </div>
-                                       <p className="text-xs text-gray-500 mt-3">Upgrade to Pro to unlock 10+ custom accent colors and themes.</p>
-                                   </div>
-                               </div>
-                               <div>
-                                   <h3 className="text-lg font-bold mb-4 dark:text-white">Chat Density</h3>
-                                   <div className="flex gap-4">
-                                       <div className="flex-1 p-4 border border-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-xl cursor-pointer">
-                                           <div className="text-sm font-bold text-blue-600 dark:text-blue-400">Normal</div>
-                                       </div>
-                                       <div className="flex-1 p-4 border border-gray-200 dark:border-white/10 rounded-xl opacity-50 cursor-not-allowed relative">
-                                           <div className="text-sm font-bold dark:text-gray-400">Compact <Lock size={12} className="inline ml-1" /></div>
-                                       </div>
-                                   </div>
-                               </div>
-                           </div>
-                       )}
-
-                       {activeSettingsTab === 'models' && (
-                           <div className="space-y-8">
-                               <div>
-                                   <h3 className="text-lg font-bold mb-4 dark:text-white">System Instructions</h3>
-                                   <div className="p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 relative overflow-hidden">
-                                       {user.tier === 'free' && (
-                                           <div className="absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-[1px] flex items-center justify-center z-10">
-                                               <Button className="shadow-xl" onClick={() => window.open('/pricing')}>Unlock Custom Instructions</Button>
+                                   <h3 className="text-2xl font-bold mb-6 dark:text-white">Profile Settings</h3>
+                                   
+                                   {/* Profile Picture */}
+                                   <div className="flex flex-col sm:flex-row items-center gap-6 p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 mb-6">
+                                       <div className="relative">
+                                           <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-3xl shadow-xl">
+                                               {getUserInitials()}
                                            </div>
-                                       )}
-                                       <textarea 
-                                            disabled={user.tier === 'free'}
-                                            className="w-full bg-transparent border border-gray-200 dark:border-white/10 rounded-lg p-3 text-sm resize-none dark:text-white focus:ring-2 focus:ring-blue-500" 
-                                            placeholder="Example: You are a senior software engineer. Be concise." 
-                                            rows={4}
-                                       ></textarea>
+                                           <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 shadow-lg">
+                                               <Camera size={16} />
+                                           </button>
+                                       </div>
+                                       <div className="flex-1 text-center sm:text-left">
+                                           <h4 className="text-lg font-bold dark:text-white mb-1">{user.email}</h4>
+                                           <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 flex items-center justify-center sm:justify-start gap-2">
+                                               {user.tier === 'pro' && <Crown size={14} className="text-yellow-500" />}
+                                               {user.tier.toUpperCase()} Plan
+                                           </p>
+                                           <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 mx-auto sm:mx-0">
+                                               <Edit2 size={12} /> Change Photo
+                                           </button>
+                                       </div>
                                    </div>
-                               </div>
-                               <div>
-                                   <h3 className="text-lg font-bold mb-4 dark:text-white">Model Parameters</h3>
-                                   <div className="space-y-4 opacity-60 pointer-events-none">
-                                       <div>
-                                           <div className="flex justify-between text-sm mb-2 dark:text-gray-300">Temperature <Lock size={12} /></div>
-                                           <div className="h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                                               <div className="w-1/2 h-full bg-blue-500"></div>
+
+                                   {/* Account Information */}
+                                   <div className="space-y-4">
+                                       <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                           <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+                                               <Mail size={14} /> Email Address
+                                           </label>
+                                           <div className="flex items-center justify-between">
+                                               <p className="text-sm font-medium dark:text-white">{user.email}</p>
+                                               <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Verify</button>
                                            </div>
                                        </div>
-                                       <div>
-                                           <div className="flex justify-between text-sm mb-2 dark:text-gray-300">Max Tokens <Lock size={12} /></div>
-                                           <div className="h-2 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
-                                               <div className="w-1/3 h-full bg-blue-500"></div>
-                                           </div>
-                                       </div>
-                                   </div>
-                               </div>
-                           </div>
-                       )}
 
-                       {activeSettingsTab === 'billing' && (
-                           <div className="text-center py-10">
-                               <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                   <CreditCard size={32} className="text-blue-500" />
-                               </div>
-                               <h3 className="text-2xl font-bold dark:text-white mb-2">Current Plan: {user.tier.toUpperCase()}</h3>
-                               <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto">
-                                   {user.tier === 'free' ? 'You are on the basic plan with limited features.' : 'You have access to premium features.'}
-                               </p>
-                               {user.tier === 'free' && (
-                                   <Button className="w-full max-w-xs mx-auto text-lg py-3">Upgrade to Pro</Button>
-                               )}
-                           </div>
-                       )}
-                       
-                       {/* Placeholder for other tabs */}
-                       {['profile', 'privacy'].includes(activeSettingsTab) && (
-                           <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                               <p>Settings content for {activeSettingsTab}...</p>
-                           </div>
-                       )}
-                   </div>
-               </div>
-            </div>
-         </div>
-      )}
-
-      {/* Logout Confirmation Modal */}
-      {logoutConfirmOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white dark:bg-[#161B22] rounded-[24px] max-w-sm w-full p-6 shadow-2xl border border-gray-200 dark:border-white/10 animate-in scale-95">
-                  <h3 className="text-lg font-bold mb-2 dark:text-white">Sign Out?</h3>
-                  <p className="text-gray-500 dark:text-gray-400 mb-6">Are you sure you want to end your session?</p>
-                  <div className="flex gap-3">
-                      <Button variant="secondary" onClick={() => setLogoutConfirmOpen(false)} className="flex-1 text-gray-700 dark:text-white border-gray-200 dark:border-white/10">Cancel</Button>
-                      <Button onClick={onLogout} className="flex-1 bg-red-600 hover:bg-red-700 shadow-red-500/20">Sign Out</Button>
-                  </div>
-              </div>
-          </div>
-      )}
-
-    </div>
-  );
-};
+                                       <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                                           <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+                                               <Calendar size={14} /> Member Since
+                                           </label>
+                                           <p className="text-sm font-medium dark:text-white">December 2024</p>
