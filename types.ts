@@ -23,6 +23,8 @@ export interface User {
   tokensUsed: number;
   imagesGenerated: number;
   themeColor: string;
+  displayName?: string;
+  avatar?: string;
 }
 
 export interface MultiResponse {
@@ -34,12 +36,12 @@ export interface MultiResponse {
 export interface Message {
   id: string;
   role: 'user' | 'model' | 'referee';
-  content: string; // Summary or primary content
-  model?: string; // which model generated this (for single mode)
-  multiResponses?: MultiResponse[]; // For multi-agent mode
+  content: string;
+  model?: string;
+  multiResponses?: MultiResponse[];
   timestamp: number;
-  isImage?: boolean; // if true, content is a URL
-  selectedWinner?: string; // Track which model won in this turn
+  isImage?: boolean;
+  selectedWinner?: string;
 }
 
 export interface ChatSession {
