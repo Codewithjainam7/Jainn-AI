@@ -29,7 +29,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
   const [userProfile, setUserProfile] = useState<any>(null);
   const [notifications, setNotifications] = useState(true);
   const [dataSharing, setDataSharing] = useState(false);
-  
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({
