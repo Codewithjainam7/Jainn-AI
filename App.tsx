@@ -10,7 +10,7 @@ import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './l
 // Netflix-style Boot Animation Component
 const NetflixBootAnimation: React.FC<{onComplete: () => void}> = ({ onComplete }) => {
   useEffect(() => {
-    const timer = setTimeout(onComplete, 2800); // Perfect Netflix timing
+    const timer = setTimeout(onComplete, 2800);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -53,7 +53,6 @@ const App: React.FC = () => {
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
-    // Check local storage for theme
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'light') {
       setIsDark(false);
@@ -62,7 +61,6 @@ const App: React.FC = () => {
       document.documentElement.classList.add('dark');
     }
 
-    // Check if we're on the auth callback page
     const currentPath = window.location.pathname;
     const currentHash = window.location.hash;
     
@@ -72,7 +70,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Initialize auth with timeout
     initializeAuth();
   }, []);
 
@@ -80,11 +77,9 @@ const App: React.FC = () => {
     console.log('🔐 Starting auth initialization...');
     
     try {
-      // Only check auth if Supabase is configured
       if (supabase) {
         console.log('✅ Supabase configured, checking session...');
         
-        // Set a timeout for auth check
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Auth timeout')), 3000)
         );
@@ -98,11 +93,7 @@ const App: React.FC = () => {
           if (currentUser) {
             console.log('✅ User session found:', currentUser.email);
             await loadUserProfile(currentUser.id, currentUser.email || '');
-            setShowBootAnimation(true);
-            setTimeout(() => {
-              setCurrentPage('chat');
-              setShowBootAnimation(false);
-            }, 2800); // Match Netflix animation timing
+            // Don't show boot animation here, it will be shown after successful auth
           } else {
             console.log('ℹ️ No active session');
           }
@@ -113,7 +104,6 @@ const App: React.FC = () => {
         console.log('ℹ️ Supabase not configured - using guest mode only');
       }
       
-      // Check for guest users in localStorage
       const savedUser = localStorage.getItem('jainnUser');
       if (savedUser && !user) {
         try {
@@ -135,7 +125,6 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('❌ Auth initialization error:', error);
     } finally {
-      // Always show the page after initialization
       console.log('✅ Auth initialization complete');
       setTimeout(() => {
         setLoading(false);
@@ -148,7 +137,6 @@ const App: React.FC = () => {
       let profile = await getUserProfile(userId);
       
       if (!profile) {
-        // Create new profile for first-time users
         profile = await upsertUserProfile({
           id: userId,
           email: email,
@@ -171,6 +159,13 @@ const App: React.FC = () => {
       };
 
       setUser(userData);
+      
+      // Show Netflix animation after profile is loaded
+      setShowBootAnimation(true);
+      setTimeout(() => {
+        setCurrentPage('chat');
+        setShowBootAnimation(false);
+      }, 2800);
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
@@ -190,6 +185,8 @@ const App: React.FC = () => {
   const handleLogin = (userData: User) => {
     console.log('✅ User logged in:', userData.email);
     setUser(userData);
+    
+    // ALWAYS show Netflix animation for all login types
     setShowBootAnimation(true);
     setTimeout(() => {
       setCurrentPage('chat');
@@ -209,7 +206,6 @@ const App: React.FC = () => {
       setCurrentPage('landing');
     } catch (error) {
       console.error('Logout error:', error);
-      // Fallback logout
       localStorage.removeItem('jainnUser');
       setUser(null);
       setCurrentPage('landing');
@@ -225,7 +221,6 @@ const App: React.FC = () => {
     setUser(updatedUser);
   };
 
-  // Boot Loader - Only show on initial load
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[100]">
@@ -247,12 +242,10 @@ const App: React.FC = () => {
     );
   }
 
-  // Show Netflix-style boot animation when transitioning to chat
   if (showBootAnimation) {
     return <NetflixBootAnimation onComplete={() => setShowBootAnimation(false)} />;
   }
 
-  // Router Logic
   return (
     <>
       {currentPage === 'landing' && (
@@ -271,7 +264,9 @@ const App: React.FC = () => {
       )}
 
       {currentPage === 'auth-callback' && (
-        <AuthCallback />
+        <AuthCallback 
+          onLogin={handleLogin}
+        />
       )}
 
       {currentPage === 'chat' && user && (
@@ -283,7 +278,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Fallback - if somehow on chat page without user */}
       {currentPage === 'chat' && !user && (
         <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center">
           <Logo size={80} />
