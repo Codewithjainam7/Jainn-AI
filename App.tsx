@@ -183,16 +183,16 @@ const App: React.FC = () => {
   };
 
   const handleLogin = (userData: User) => {
-    console.log('✅ User logged in:', userData.email);
-    setUser(userData);
-    
-    // ALWAYS show Netflix animation for all login types
-    setShowBootAnimation(true);
-    setTimeout(() => {
-      setCurrentPage('chat');
-      setShowBootAnimation(false);
-    }, 2800);
-  };
+  console.log('✅ User logged in:', userData.email);
+  setUser(userData);
+  
+  // ALWAYS show Netflix animation for all login types
+  setShowBootAnimation(true);
+  setTimeout(() => {
+    setCurrentPage('chat');
+    setShowBootAnimation(false);
+  }, 2800);
+};
 
   const handleLogout = async () => {
     try {
