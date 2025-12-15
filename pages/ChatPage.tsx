@@ -232,6 +232,38 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
   }
 };
 
+  const handleRegenerate = async (messageId: string) => {
+  const messageIndex = messages.findIndex(m => m.id === messageId);
+  if (messageIndex === -1 || messageIndex === 0) return;
+  
+  const previousUserMessage = messages[messageIndex - 1];
+  if (previousUserMessage.role !== 'user') return;
+  
+  setRegeneratingMessageId(messageId);
+  
+  try {
+    if (mode === ChatMode.SINGLE) {
+      const response = await generateResponse(previousUserMessage.content, currentModel);
+      const newMsg: Message = {
+        ...messages[messageIndex],
+        content: response,
+        timestamp: Date.now()
+      };
+      
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[messageIndex] = newMsg;
+        return updated;
+      });
+    }
+  } catch (error) {
+    console.error('Regeneration error:', error);
+    showModal('Regeneration Failed', 'Failed to regenerate response. Please try again.', 'error');
+  } finally {
+    setRegeneratingMessageId(null);
+  }
+};
+
   const handleSelectWinner = (messageId: string, modelName: string) => {
     setMessages(prev => prev.map(msg => {
       if (msg.id === messageId && msg.multiResponses) {
