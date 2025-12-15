@@ -128,109 +128,109 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
 
   // Message handling function
   const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
-    
-    if (user.tier === UserTier.GUEST && messages.length >= 10) {
-      showModal(
-        'Guest Limit Reached',
-        'You\'ve reached the 10 message limit for guest users. Please sign up to continue chatting!',
-        'warning'
-      );
-      return;
-    }
+  if ((!input.trim() && uploadedFiles.length === 0) || isTyping) return;
+  
+  if (user.tier === UserTier.GUEST && messages.length >= 10) {
+    showModal(
+      'Guest Limit Reached',
+      'You\'ve reached the 10 message limit for guest users. Please sign up to continue chatting!',
+      'warning'
+    );
+    return;
+  }
 
-    const isImageCmd = input.toLowerCase().startsWith('/image');
+  const isImageCmd = input.toLowerCase().startsWith('/image');
+  
+  // Create user message with files
+  const userMsg: Message = {
+    id: Date.now().toString(),
+    role: 'user',
+    content: input || `[${uploadedFiles.length} file(s) attached]`,
+    timestamp: Date.now(),
+    files: uploadedFiles.length > 0 ? uploadedFiles : undefined
+  };
+
+  setMessages(prev => [...prev, userMsg]);
+  setInput('');
+  setUploadedFiles([]); // Clear files after sending
+  setIsTyping(true);
+
+  try {
     if (isImageCmd) {
-      if (mode !== ChatMode.SINGLE) {
-        showModal('Feature Unavailable', 'Image generation is only available in Single Mode.', 'warning');
-        return;
-      }
-      if (currentModel !== ModelType.GEMINI) {
-        showModal('Feature Unavailable', 'Image generation is only supported by the Gemini model.', 'warning');
-        return;
-      }
-    }
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: input,
-      timestamp: Date.now()
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setIsTyping(true);
-
-    try {
-      if (isImageCmd) {
-        const prompt = input.replace('/image', '').trim();
-        const imageUrl = await generateImage(prompt);
-        if (imageUrl) {
-          const imgMsg: Message = {
-            id: Date.now().toString(),
-            role: 'model',
-            model: 'Imagen 3.0',
-            content: imageUrl,
-            isImage: true,
-            timestamp: Date.now()
-          };
-          setMessages(prev => [...prev, imgMsg]);
-        } else {
-          throw new Error("Failed to generate image");
-        }
-      } else if (mode === ChatMode.SINGLE) {
-        const response = await generateResponse(userMsg.content, currentModel);
-        const aiMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'model',
-          model: currentModel.toUpperCase(),
-          content: response,
-          timestamp: Date.now()
-        };
-        setMessages(prev => [...prev, aiMsg]);
-      } else {
-        const models = [ModelType.GEMINI, ModelType.LLAMA, ModelType.MISTRAL];
-        const responses = await Promise.all(models.map(async (m) => {
-          return {
-            model: m,
-            text: await generateResponse(userMsg.content, m)
-          };
-        }));
-
-        const multiResponses: MultiResponse[] = responses.map(r => ({
-          model: r.model.toUpperCase(),
-          content: r.text,
-          isWinner: false
-        }));
-
-        const multiMsg: Message = {
+      const prompt = input.replace('/image', '').trim();
+      const imageUrl = await generateImage(prompt);
+      if (imageUrl) {
+        const imgMsg: Message = {
           id: Date.now().toString(),
           role: 'model',
-          content: 'Multi-Agent Response',
-          timestamp: Date.now(),
-          multiResponses: multiResponses
+          model: 'Imagen 3.0',
+          content: imageUrl,
+          isImage: true,
+          timestamp: Date.now()
         };
-        
-        setMessages(prev => [...prev, multiMsg]);
-
-        generateRefereeAnalysis(userMsg.content, responses).then(analysis => {
-          console.log("Referee Analysis (Backend):", analysis);
-        });
+        setMessages(prev => [...prev, imgMsg]);
+      } else {
+        throw new Error("Failed to generate image");
       }
-    } catch (error) {
-      console.error(error);
-      const errorMsg: Message = {
-        id: Date.now().toString(),
+    } else if (mode === ChatMode.SINGLE) {
+      // Include file analysis in the prompt
+      let enhancedPrompt = userMsg.content;
+      if (uploadedFiles.length > 0) {
+        enhancedPrompt += `\n\n[User has attached ${uploadedFiles.length} file(s): ${uploadedFiles.map(f => f.name).join(', ')}]`;
+      }
+      
+      const response = await generateResponse(enhancedPrompt, currentModel, uploadedFiles);
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
         role: 'model',
-        content: "I encountered an error. Please check your API configuration or try again.",
+        model: currentModel.toUpperCase(),
+        content: response,
         timestamp: Date.now()
       };
-      setMessages(prev => [...prev, errorMsg]);
-    } finally {
-      setIsTyping(false);
+      setMessages(prev => [...prev, aiMsg]);
+    } else {
+      // Multi-agent with files
+      const models = [ModelType.GEMINI, ModelType.LLAMA, ModelType.MISTRAL];
+      const responses = await Promise.all(models.map(async (m) => {
+        return {
+          model: m,
+          text: await generateResponse(userMsg.content, m, uploadedFiles)
+        };
+      }));
+
+      const multiResponses: MultiResponse[] = responses.map(r => ({
+        model: r.model.toUpperCase(),
+        content: r.text,
+        isWinner: false
+      }));
+
+      const multiMsg: Message = {
+        id: Date.now().toString(),
+        role: 'model',
+        content: 'Multi-Agent Response',
+        timestamp: Date.now(),
+        multiResponses: multiResponses
+      };
+      
+      setMessages(prev => [...prev, multiMsg]);
+
+      generateRefereeAnalysis(userMsg.content, responses).then(analysis => {
+        console.log("Referee Analysis:", analysis);
+      });
     }
-  };
+  } catch (error) {
+    console.error(error);
+    const errorMsg: Message = {
+      id: Date.now().toString(),
+      role: 'model',
+      content: "I encountered an error. Please check your API configuration or try again.",
+      timestamp: Date.now()
+    };
+    setMessages(prev => [...prev, errorMsg]);
+  } finally {
+    setIsTyping(false);
+  }
+};
 
   const handleSelectWinner = (messageId: string, modelName: string) => {
     setMessages(prev => prev.map(msg => {
