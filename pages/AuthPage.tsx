@@ -1,53 +1,10 @@
 import React, { useState } from 'react';
 import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
+import { CustomModal } from '../components/CustomModal';
 import { User, UserTier } from '../types';
-import { Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { supabase, signInWithGoogle } from '../lib/supabase';
-
-// Inline Custom Modal Component
-const CustomModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  message: string;
-  type?: 'success' | 'error' | 'info' | 'warning';
-}> = ({ isOpen, onClose, title, message, type = 'info' }) => {
-  if (!isOpen) return null;
-
-  const getIconAndColor = () => {
-    switch (type) {
-      case 'success':
-        return { Icon: CheckCircle, iconColor: 'text-green-500', bgColor: 'bg-green-100 dark:bg-green-900/30' };
-      case 'error':
-        return { Icon: AlertCircle, iconColor: 'text-red-500', bgColor: 'bg-red-100 dark:bg-red-900/30' };
-      case 'warning':
-        return { Icon: AlertCircle, iconColor: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' };
-      default:
-        return { Icon: Mail, iconColor: 'text-blue-500', bgColor: 'bg-blue-100 dark:bg-blue-900/30' };
-    }
-  };
-
-  const { Icon, iconColor, bgColor } = getIconAndColor();
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="bg-white dark:bg-[#161B22] rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95">
-        <div className={`w-12 h-12 rounded-full ${bgColor} flex items-center justify-center mb-4 mx-auto`}>
-          <Icon size={24} className={iconColor} />
-        </div>
-        <h3 className="text-xl font-bold mb-2 dark:text-white text-center">{title}</h3>
-        <p className="text-gray-600 dark:text-gray-400 mb-6 text-center leading-relaxed">{message}</p>
-        <button 
-          onClick={onClose}
-          className="w-full px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-medium transition-colors"
-        >
-          Got it
-        </button>
-      </div>
-    </div>
-  );
-};
 
 interface AuthPageProps {
   onLogin: (user: User) => void;
@@ -72,7 +29,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
     type: 'info' as 'success' | 'error' | 'info' | 'warning'
   });
 
-  // Password Strength
   const getPasswordStrength = (pass: string) => {
     let strength = 0;
     if (pass.length > 7) strength++;
@@ -112,6 +68,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
 
       if (!isLogin) {
+        // SIGN UP FLOW
         if (password !== confirmPassword) {
           setError("Passwords do not match");
           setLoading(false);
@@ -124,33 +81,79 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
           return;
         }
 
+        console.log('📝 Attempting sign up for:', email);
+
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              email_confirm: true
+            }
           }
         });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          console.error('❌ Sign up error:', signUpError);
+          throw signUpError;
+        }
+
+        console.log('✅ Sign up response:', data);
 
         if (data.user) {
-          showModal(
-            'Check Your Email',
-            'We\'ve sent you a confirmation link. Please check your inbox to verify your account.',
-            'success'
-          );
-          setIsLogin(true);
+          // Check if email confirmation is required
+          if (data.user.identities && data.user.identities.length === 0) {
+            // User already exists
+            showModal(
+              'Account Exists',
+              'An account with this email already exists. Please sign in instead.',
+              'warning'
+            );
+            setIsLogin(true);
+          } else {
+            // New user - show email confirmation message
+            showModal(
+              'Check Your Email! 📧',
+              `We've sent a verification link to ${email}. Please check your inbox (and spam folder) to verify your account and complete registration.`,
+              'success'
+            );
+            
+            // Clear form
+            setEmail('');
+            setPassword('');
+            setConfirmPassword('');
+            
+            // Don't auto-switch to login - let user read the message
+          }
         }
       } else {
+        // SIGN IN FLOW
+        console.log('🔐 Attempting sign in for:', email);
+
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
-        if (signInError) throw signInError;
+        if (signInError) {
+          console.error('❌ Sign in error:', signInError);
+          throw signInError;
+        }
+
+        console.log('✅ Sign in successful:', data.user?.email);
 
         if (data.user) {
+          if (!data.user.email_confirmed_at) {
+            showModal(
+              'Email Not Verified',
+              'Please verify your email address before signing in. Check your inbox for the verification link.',
+              'warning'
+            );
+            setLoading(false);
+            return;
+          }
+
           const userData: User = {
             id: data.user.id,
             email: data.user.email || '',
@@ -160,12 +163,26 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
             themeColor: '#3B82F6',
             displayName: data.user.email?.split('@')[0] || 'User'
           };
+          
+          // This will trigger Netflix animation in App.tsx
           onLogin(userData);
         }
       }
     } catch (err: any) {
       console.error('Auth error:', err);
-      setError(err.message || 'Authentication failed');
+      
+      // User-friendly error messages
+      let errorMessage = err.message || 'Authentication failed';
+      
+      if (err.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password. Please try again.';
+      } else if (err.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please verify your email before signing in.';
+      } else if (err.message?.includes('User already registered')) {
+        errorMessage = 'This email is already registered. Please sign in.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -191,6 +208,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
       
       console.log('✅ Redirecting to Google...');
+      // Don't set loading to false - user is being redirected
     } catch (err: any) {
       console.error('Google auth error:', err);
       setError(err.message || 'Google sign-in failed');
