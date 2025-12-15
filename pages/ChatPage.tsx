@@ -3,6 +3,7 @@ import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { CustomModal } from '../components/CustomModal';
 import { ProfileSettings } from '../components/ProfileSettings';
+
 import { User, ChatMode, Message, ModelType, UserTier, MultiResponse } from '../types';
 import { generateResponse, generateRefereeAnalysis, generateImage } from '../services/gemini';
 import { supabase, upsertUserProfile } from '../lib/supabase';
