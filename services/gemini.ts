@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { ModelType } from "../types";
 
-// Initialize the Gemini client - USE VITE_ PREFIX
+// Initialize the Gemini client
 const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const openRouterApiKey = import.meta.env.VITE_OPENROUTER_API_KEY || '';
 const ai = geminiApiKey ? new GoogleGenAI({ apiKey: geminiApiKey }) : null;
@@ -74,9 +74,7 @@ export const generateResponse = async (
   systemInstruction?: string
 ): Promise<string> => {
   try {
-    // Route to appropriate API based on model type
     if (modelType === ModelType.GEMINI) {
-      // Use Google Gemini
       if (!geminiApiKey || !ai) {
         throw new Error("Gemini API Key not found. Please add VITE_GEMINI_API_KEY to your environment variables.");
       }
@@ -92,12 +90,10 @@ export const generateResponse = async (
       return response.text || "No response generated.";
       
     } else if (modelType === ModelType.LLAMA) {
-      // Use OpenRouter for LLaMA
       const instruction = systemInstruction || "You are LLaMA 3.1, a helpful and efficient AI assistant created by Meta. Answer with clarity and precision.";
       return await callOpenRouter(prompt, ModelType.LLAMA, instruction);
       
     } else if (modelType === ModelType.MISTRAL) {
-      // Use OpenRouter for Mistral
       const instruction = systemInstruction || "You are Mistral Large, a concise and precise AI assistant. Answer with accuracy and efficiency.";
       return await callOpenRouter(prompt, ModelType.MISTRAL, instruction);
       
@@ -107,7 +103,6 @@ export const generateResponse = async (
   } catch (error: any) {
     console.error("Error generating content:", error);
     
-    // Return user-friendly error messages
     if (error.message?.includes('API Key not found')) {
       return `⚠️ ${error.message}`;
     }
@@ -154,7 +149,8 @@ export const generateRefereeAnalysis = async (
 };
 
 /**
- * Generate images using Gemini's Imagen model
+ * Generate images using Gemini's UPDATED Imagen model - Flash Image 2.0
+ * FIXED: Updated to use the latest stable image generation model
  */
 export const generateImage = async (prompt: string): Promise<string | null> => {
   if (!geminiApiKey || !ai) {
@@ -162,20 +158,52 @@ export const generateImage = async (prompt: string): Promise<string | null> => {
   }
   
   try {
-    const response = await ai.models.generateImages({
-      model: 'imagen-3.0-generate-001',
-      prompt: prompt,
-      config: {
-        numberOfImages: 1,
-        aspectRatio: '1:1',
-        outputMimeType: 'image/jpeg'
-      }
-    });
+    console.log('🎨 Generating image with Flash Image 2.0...');
+    
+    // UPDATED: Using the latest image generation model
+    // Try gemini-2.5-flash-image first, fallback to imagen-3.0 if needed
+    let imageUrl: string | null = null;
+    
+    try {
+      const response = await ai.models.generateImages({
+        model: 'gemini-2.5-flash-image', // UPDATED MODEL
+        prompt: prompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio: '1:1',
+          outputMimeType: 'image/jpeg'
+        }
+      });
 
-    const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
-    if (imageBytes) {
-      return `data:image/jpeg;base64,${imageBytes}`;
+      const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
+      if (imageBytes) {
+        imageUrl = `data:image/jpeg;base64,${imageBytes}`;
+      }
+    } catch (flashError) {
+      console.warn('Flash Image 2.0 failed, trying Imagen 3.0 fallback...', flashError);
+      
+      // Fallback to Imagen 3.0
+      const response = await ai.models.generateImages({
+        model: 'imagen-3.0-generate-001',
+        prompt: prompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio: '1:1',
+          outputMimeType: 'image/jpeg'
+        }
+      });
+
+      const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
+      if (imageBytes) {
+        imageUrl = `data:image/jpeg;base64,${imageBytes}`;
+      }
     }
+    
+    if (imageUrl) {
+      console.log('✅ Image generated successfully');
+      return imageUrl;
+    }
+    
     return null;
   } catch (error: any) {
     console.error("Image generation error:", error);
