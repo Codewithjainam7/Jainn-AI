@@ -347,30 +347,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, toggleThem
 
       {/* Footer */}
       <footer className="bg-white dark:bg-[#090C10] py-16 border-t border-gray-200 dark:border-white/5 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-12">
-            <div className="flex items-center gap-3">
-              <Logo size={40} />
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">Jainn AI</span>
-            </div>
-            <div className="flex flex-col items-center md:items-end gap-2">
-               <div className="flex gap-8 text-gray-500 dark:text-gray-400">
-                  <a href="#" className="hover:text-blue-500 transition-colors">Twitter</a>
-                  <a href="#" className="hover:text-blue-500 transition-colors">Discord</a>
-                  <a href="#" className="hover:text-blue-500 transition-colors">Privacy</a>
-               </div>
-               <a href="mailto:jainn.ai.contact@gmail.com" className="text-sm text-gray-400 hover:text-blue-500 transition-colors">jainn.ai.contact@gmail.com</a>
-            </div>
-          </div>
-          <div className="text-center text-sm text-gray-500">
-            © 2025 Jainn.io - All rights reserved.
-          </div>
+  <div className="max-w-7xl mx-auto px-6 relative z-10">
+    <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-12">
+      <div className="flex items-center gap-3">
+        <Logo size={40} />
+        <span className="text-2xl font-bold text-gray-900 dark:text-white">Jainn AI</span>
+      </div>
+      <div className="flex flex-col items-center md:items-end gap-2">
+        <div className="flex gap-8 text-gray-500 dark:text-gray-400">
+          <button onClick={() => onNavigate('privacy')} className="hover:text-blue-500 transition-colors">Privacy</button>
+          <button onClick={() => onNavigate('terms')} className="hover:text-blue-500 transition-colors">Terms</button>
+          <button onClick={() => onNavigate('refund-policy')} className="hover:text-blue-500 transition-colors">Refund</button>
+          <button onClick={() => onNavigate('contact')} className="hover:text-blue-500 transition-colors">Contact</button>
         </div>
-        {/* Watermark - Darker in light mode for visibility */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/3 text-[20vw] font-black text-gray-100 dark:text-[#161B22] pointer-events-none select-none">
-          JAINN
-        </div>
-      </footer>
+        <a href="mailto:jainn.ai.contact@gmail.com" className="text-sm text-gray-400 hover:text-blue-500 transition-colors">jainn.ai.contact@gmail.com</a>
+      </div>
+    </div>
+    <div className="text-center text-sm text-gray-500">
+      © 2025 Jainn.io - All rights reserved.
+    </div>
+  </div>
+  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/3 text-[20vw] font-black text-gray-100 dark:text-[#161B22] pointer-events-none select-none">
+    JAINN
+  </div>
+</footer>
     </div>
   );
 };
