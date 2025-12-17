@@ -71,6 +71,7 @@ async function callOpenRouter(
 export const generateResponse = async (
   prompt: string, 
   modelType: ModelType = ModelType.GEMINI,
+  files?: any[], // ADD THIS PARAMETER
   systemInstruction?: string
 ): Promise<string> => {
   try {
@@ -79,11 +80,27 @@ export const generateResponse = async (
         throw new Error("Gemini API Key not found. Please add VITE_GEMINI_API_KEY to your environment variables.");
       }
 
+      // Build contents array with files
+      const contents: any[] = [{ text: prompt }];
+      
+      if (files && files.length > 0) {
+        files.forEach(file => {
+          if (file.base64) {
+            contents.push({
+              inlineData: {
+                mimeType: file.type,
+                data: file.base64
+              }
+            });
+          }
+        });
+      }
+
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: prompt,
+        contents: contents,
         config: {
-          systemInstruction: systemInstruction || "You are Gemini, a helpful AI assistant created by Google.",
+          systemInstruction: systemInstruction || "You are Gemini, a helpful AI assistant. When files are attached, analyze them thoroughly.",
         }
       });
       
