@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [showBootAnimation, setShowBootAnimation] = useState(false);
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState<User | null>(null);
+  const [policyPage, setPolicyPage] = useState<'refund' | 'contact' | 'privacy' | 'terms' | 'shipping' | null>(null);
   const [isDark, setIsDark] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<'pro' | 'ultra' | null>(null);
 
@@ -304,6 +305,12 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
         />
       )}
 
+      {policyPage && (
+  <PolicyPage 
+    type={policyPage}
+    onBack={() => setPolicyPage(null)}
+  />
+)}
       {currentPage === 'auth-callback' && (
         <AuthCallback 
           onLogin={handleLogin}
