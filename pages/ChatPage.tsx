@@ -15,6 +15,7 @@ interface ChatPageProps {
   onLogout: () => void;
   onHome: () => void;
   onUpdateUser: (user: User) => void;
+  onUpgrade?: (plan: 'pro' | 'ultra') => void;  // ADD THIS LINE
 }
 
 export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUpdateUser }) => {
@@ -438,6 +439,26 @@ return (
               </p>
             </div>
           </div>
+          {(user.tier === 'free' || user.tier === 'guest') && onUpgrade && (
+  <div className="mx-4 mb-4 p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-2xl">
+    <div className="flex items-center gap-2 mb-2">
+      <Crown size={16} className="text-yellow-500" />
+      <h4 className="text-sm font-bold dark:text-white">Upgrade to Pro</h4>
+    </div>
+    <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+      Unlock multi-agent mode and 10x more tokens
+    </p>
+    <button
+      onClick={() => {
+        onUpgrade('pro');
+        setSidebarOpen(false);
+      }}
+      className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+    >
+      Upgrade Now
+    </button>
+  </div>
+)}
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={() => setSettingsOpen(true)} className="flex-1 justify-start px-2"><Settings size={16} /> Settings</Button>
             <Button size="sm" variant="ghost" onClick={() => setLogoutConfirmOpen(true)} className="flex-1 justify-start px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"><LogOut size={16} /> Logout</Button>
@@ -781,10 +802,19 @@ return (
                             </p>
                           </div>
                           {user.tier !== 'ultra' && (
-                            <button className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap">
-                              Upgrade Plan
-                            </button>
-                          )}
+  <button 
+    onClick={() => {
+      if (onUpgrade) {
+        const targetPlan = user.tier === 'free' || user.tier === 'guest' ? 'pro' : 'ultra';
+        onUpgrade(targetPlan);
+        setSettingsOpen(false);
+      }
+    }}
+    className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap"
+  >
+    Upgrade Plan
+  </button>
+)}
                         </div>
                       </div>
                     </div>
