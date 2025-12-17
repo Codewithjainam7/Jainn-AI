@@ -4,6 +4,7 @@ import { Button } from '../components/Button';
 import { ChatHistory } from '../components/ChatHistory';
 import { CustomModal } from '../components/CustomModal';
 import { ProfileSettings } from '../components/ProfileSettings';
+import { User, ChatMode, Message, ModelType, UserTier, MultiResponse, ChatSession, UploadedFile } from '../types';
 import { saveChatSession, getChatSessions, generateChatTitle } from '../lib/chatHistory';
 import { MessageSquare, Edit2, Trash2, Loader } from 'lucide-react'; // Add these icons
 import { User, ChatMode, Message, ModelType, UserTier, MultiResponse } from '../types';
