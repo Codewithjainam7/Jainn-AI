@@ -118,31 +118,60 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin }) => {
             console.log('✅ OAuth session established, creating profile...');
             setStatus('Setting up your account...');
             
-            // Get or create user profile
-            let profile = await upsertUserProfile({
-              id: session.user.id,
-              email: session.user.email!,
-              tier: 'free',
-              tokens_used: 0,
-              images_generated: 0,
-              theme_color: '#3B82F6',
-              display_name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0]
-            });
+            // CRITICAL FIX: Add proper error handling and null checks
+            try {
+              let profile = await upsertUserProfile({
+                id: session.user.id,
+                email: session.user.email!,
+                tier: 'free',
+                tokens_used: 0,
+                images_generated: 0,
+                theme_color: '#3B82F6',
+                display_name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0]
+              });
 
-            const userData: User = {
-              id: profile.id,
-              email: profile.email,
-              tier: UserTier.FREE,
-              tokensUsed: profile.tokens_used,
-              imagesGenerated: profile.images_generated,
-              themeColor: profile.theme_color,
-              displayName: profile.display_name,
-              avatar: session.user.user_metadata?.avatar_url
-            };
+              // If profile creation failed, create a basic user object
+              if (!profile) {
+                profile = {
+                  id: session.user.id,
+                  email: session.user.email!,
+                  tier: 'free',
+                  tokens_used: 0,
+                  images_generated: 0,
+                  theme_color: '#3B82F6',
+                  display_name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0]
+                };
+              }
 
-            console.log('✅ Triggering login with Netflix animation...');
-            // This will trigger the Netflix animation in App.tsx
-            onLogin(userData);
+              const userData: User = {
+                id: profile.id,
+                email: profile.email,
+                tier: UserTier.FREE,
+                tokensUsed: profile.tokens_used || 0,
+                imagesGenerated: profile.images_generated || 0,
+                themeColor: profile.theme_color || '#3B82F6',
+                displayName: profile.display_name || session.user.email!.split('@')[0],
+                avatar: session.user.user_metadata?.avatar_url
+              };
+
+              console.log('✅ Triggering login with Netflix animation...');
+              // This will trigger the Netflix animation in App.tsx
+              onLogin(userData);
+            } catch (profileError) {
+              console.error('❌ Profile creation error:', profileError);
+              // Even if profile creation fails, still allow login with basic data
+              const userData: User = {
+                id: session.user.id,
+                email: session.user.email!,
+                tier: UserTier.FREE,
+                tokensUsed: 0,
+                imagesGenerated: 0,
+                themeColor: '#3B82F6',
+                displayName: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
+                avatar: session.user.user_metadata?.avatar_url
+              };
+              onLogin(userData);
+            }
           }
         } else {
           console.log('⚠️ No auth tokens found, redirecting home');
