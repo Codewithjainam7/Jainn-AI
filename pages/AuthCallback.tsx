@@ -67,29 +67,54 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin }) => {
             console.log('✅ Email verified, creating user profile...');
             setStatus('Setting up your account...');
             
-            // Create user profile and trigger login
-            const profile = await upsertUserProfile({
-              id: session.user.id,
-              email: session.user.email!,
-              tier: 'free',
-              tokens_used: 0,
-              images_generated: 0,
-              theme_color: '#3B82F6',
-              display_name: session.user.email!.split('@')[0]
-            });
+            // FIXED: Better error handling for profile creation
+            try {
+              const profile = await upsertUserProfile({
+                id: session.user.id,
+                email: session.user.email!,
+                tier: 'free',
+                tokens_used: 0,
+                images_generated: 0,
+                theme_color: '#3B82F6',
+                display_name: session.user.email!.split('@')[0],
+                created_at: new Date().toISOString() // ADD CREATED DATE
+              });
 
-            const userData: User = {
-              id: profile.id,
-              email: profile.email,
-              tier: UserTier.FREE,
-              tokensUsed: 0,
-              imagesGenerated: 0,
-              themeColor: '#3B82F6',
-              displayName: session.user.email!.split('@')[0]
-            };
+              // Fallback if profile creation fails
+              const userData: User = profile ? {
+                id: profile.id,
+                email: profile.email,
+                tier: UserTier.FREE,
+                tokensUsed: profile.tokens_used || 0,
+                imagesGenerated: profile.images_generated || 0,
+                themeColor: profile.theme_color || '#3B82F6',
+                displayName: profile.display_name || session.user.email!.split('@')[0]
+              } : {
+                id: session.user.id,
+                email: session.user.email!,
+                tier: UserTier.FREE,
+                tokensUsed: 0,
+                imagesGenerated: 0,
+                themeColor: '#3B82F6',
+                displayName: session.user.email!.split('@')[0]
+              };
 
-            // Trigger Netflix animation and login
-            onLogin(userData);
+              onLogin(userData);
+            } catch (profileError) {
+              console.error('⚠️ Profile creation failed, using fallback:', profileError);
+              
+              // Still allow login with basic data
+              const userData: User = {
+                id: session.user.id,
+                email: session.user.email!,
+                tier: UserTier.FREE,
+                tokensUsed: 0,
+                imagesGenerated: 0,
+                themeColor: '#3B82F6',
+                displayName: session.user.email!.split('@')[0]
+              };
+              onLogin(userData);
+            }
           } else {
             setStatus('Verification complete. Please sign in.');
             setTimeout(() => window.location.href = '/', 2000);
@@ -118,32 +143,19 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin }) => {
             console.log('✅ OAuth session established, creating profile...');
             setStatus('Setting up your account...');
             
-            // CRITICAL FIX: Add proper error handling and null checks
             try {
-              let profile = await upsertUserProfile({
+              const profile = await upsertUserProfile({
                 id: session.user.id,
                 email: session.user.email!,
                 tier: 'free',
                 tokens_used: 0,
                 images_generated: 0,
                 theme_color: '#3B82F6',
-                display_name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0]
+                display_name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
+                created_at: new Date().toISOString() // ADD CREATED DATE
               });
 
-              // If profile creation failed, create a basic user object
-              if (!profile) {
-                profile = {
-                  id: session.user.id,
-                  email: session.user.email!,
-                  tier: 'free',
-                  tokens_used: 0,
-                  images_generated: 0,
-                  theme_color: '#3B82F6',
-                  display_name: session.user.user_metadata?.full_name || session.user.email!.split('@')[0]
-                };
-              }
-
-              const userData: User = {
+              const userData: User = profile ? {
                 id: profile.id,
                 email: profile.email,
                 tier: UserTier.FREE,
@@ -152,14 +164,22 @@ export const AuthCallback: React.FC<AuthCallbackProps> = ({ onLogin }) => {
                 themeColor: profile.theme_color || '#3B82F6',
                 displayName: profile.display_name || session.user.email!.split('@')[0],
                 avatar: session.user.user_metadata?.avatar_url
+              } : {
+                id: session.user.id,
+                email: session.user.email!,
+                tier: UserTier.FREE,
+                tokensUsed: 0,
+                imagesGenerated: 0,
+                themeColor: '#3B82F6',
+                displayName: session.user.user_metadata?.full_name || session.user.email!.split('@')[0],
+                avatar: session.user.user_metadata?.avatar_url
               };
 
               console.log('✅ Triggering login with Netflix animation...');
-              // This will trigger the Netflix animation in App.tsx
               onLogin(userData);
             } catch (profileError) {
-              console.error('❌ Profile creation error:', profileError);
-              // Even if profile creation fails, still allow login with basic data
+              console.error('⚠️ Profile creation failed, using fallback:', profileError);
+              
               const userData: User = {
                 id: session.user.id,
                 email: session.user.email!,
