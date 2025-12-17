@@ -3,6 +3,7 @@ import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
 import { AuthCallback } from './pages/AuthCallback';
+import { PaymentPage } from './pages/PaymentPage';
 import { Logo } from './components/Logo';
 import { User } from './types';
 import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
@@ -51,6 +52,7 @@ const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState('landing');
   const [user, setUser] = useState<User | null>(null);
   const [isDark, setIsDark] = useState(true);
+  const [selectedPlan, setSelectedPlan] = useState<'pro' | 'ultra' | null>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -131,7 +133,45 @@ const App: React.FC = () => {
       }, 1500);
     }
   };
-
+const handleUpgrade = (plan: 'pro' | 'ultra') => {
+  if (user?.tier === 'guest') {
+    alert('Please sign up or log in to upgrade your plan');
+    handleNavigate('login');
+    return;
+  }
+  setSelectedPlan(plan);
+  handleNavigate('payment');
+};
+  const handlePaymentSuccess = (newTier: UserTier) => {
+  if (!user) return;
+  
+  const updatedUser: User = {
+    ...user,
+    tier: newTier
+  };
+  
+  // Update localStorage or Supabase
+  if (supabase && !user.id.startsWith('guest_')) {
+    upsertUserProfile({
+      id: user.id,
+      email: user.email,
+      tier: newTier,
+      tokens_used: user.tokensUsed,
+      images_generated: user.imagesGenerated,
+      theme_color: user.themeColor,
+      display_name: user.displayName
+    }).then(() => {
+      setUser(updatedUser);
+      handleNavigate('chat');
+      alert('🎉 Upgrade successful! Enjoy your new features.');
+    });
+  } else {
+    localStorage.setItem('jainnUser', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    handleNavigate('chat');
+    alert('🎉 Upgrade successful! Enjoy your new features.');
+  }
+};
   const loadUserProfile = async (userId: string, email: string) => {
     try {
       let profile = await getUserProfile(userId);
@@ -249,12 +289,13 @@ const App: React.FC = () => {
   return (
     <>
       {currentPage === 'landing' && (
-        <LandingPage 
-          onNavigate={handleNavigate} 
-          toggleTheme={toggleTheme} 
-          isDark={isDark} 
-        />
-      )}
+  <LandingPage 
+    onNavigate={handleNavigate} 
+    toggleTheme={toggleTheme} 
+    isDark={isDark}
+    onUpgrade={handleUpgrade}  // ADD THIS LINE
+  />
+)}
       
       {currentPage === 'login' && (
         <AuthPage 
@@ -270,13 +311,23 @@ const App: React.FC = () => {
       )}
 
       {currentPage === 'chat' && user && (
-        <ChatPage 
-          user={user} 
-          onLogout={handleLogout}
-          onHome={() => handleNavigate('landing')}
-          onUpdateUser={handleUpdateUser}
-        />
-      )}
+  <ChatPage 
+    user={user} 
+    onLogout={handleLogout}
+    onHome={() => handleNavigate('landing')}
+    onUpdateUser={handleUpdateUser}
+    onUpgrade={handleUpgrade}  // ADD THIS LINE
+  />
+)}
+
+      {currentPage === 'payment' && user && selectedPlan && (
+  <PaymentPage
+    user={user}
+    selectedPlan={selectedPlan}
+    onBack={() => handleNavigate('chat')}
+    onPaymentSuccess={handlePaymentSuccess}
+  />
+)}
 
       {currentPage === 'chat' && !user && (
         <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center">
