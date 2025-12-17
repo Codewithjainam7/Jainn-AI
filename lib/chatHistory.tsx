@@ -1,177 +1,202 @@
-import React, { useState, useEffect } from 'react';
-import { MessageSquare, Edit2, Trash2, Check, X, Loader } from 'lucide-react';
-import { ChatSession } from './types';
-import { getChatSessions, deleteChatSession, renameChatSession } from './lib/chatHistory';
+import { supabase } from './supabase';
+import { ChatSession, Message, ChatMode } from '../types';
 
-interface ChatHistoryProps {
-  userId: string;
-  onSelectChat: (session: ChatSession) => void;
-  currentSessionId?: string;
-}
+/**
+ * Save or update a chat session
+ */
+export const saveChatSession = async (
+  userId: string,
+  sessionId: string,
+  title: string,
+  mode: ChatMode,
+  messages: Message[]
+): Promise<void> => {
+  try {
+    // For guest users, save to localStorage
+    if (userId.startsWith('guest_')) {
+      const sessions = getLocalChatSessions(userId);
+      const existingIndex = sessions.findIndex(s => s.id === sessionId);
+      
+      const session: ChatSession = {
+        id: sessionId,
+        userId,
+        title,
+        mode,
+        messages,
+        lastUpdated: Date.now()
+      };
 
-export const ChatHistory: React.FC<ChatHistoryProps> = ({ userId, onSelectChat, currentSessionId }) => {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+      if (existingIndex >= 0) {
+        sessions[existingIndex] = session;
+      } else {
+        sessions.push(session);
+      }
 
-  useEffect(() => {
-    loadSessions();
-  }, [userId]);
-
-  const loadSessions = async () => {
-    try {
-      setLoading(true);
-      const data = await getChatSessions(userId);
-      setSessions(data);
-    } catch (error) {
-      console.error('Failed to load chat sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStartEdit = (session: ChatSession) => {
-    setEditingId(session.id);
-    setEditTitle(session.title);
-  };
-
-  const handleSaveEdit = async (sessionId: string) => {
-    if (!editTitle.trim()) return;
-    
-    try {
-      await renameChatSession(sessionId, userId, editTitle.trim());
-      await loadSessions();
-      setEditingId(null);
-      setEditTitle('');
-    } catch (error) {
-      console.error('Failed to rename chat:', error);
-      alert('Failed to rename chat. Please try again.');
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditTitle('');
-  };
-
-  const handleDelete = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
+      // Keep only last 50 sessions for guest users
+      const limitedSessions = sessions.slice(-50);
+      localStorage.setItem(`jainn_chat_sessions_${userId}`, JSON.stringify(limitedSessions));
       return;
     }
 
-    try {
-      setDeletingId(sessionId);
-      await deleteChatSession(sessionId, userId);
-      await loadSessions();
-    } catch (error) {
-      console.error('Failed to delete chat:', error);
-      alert('Failed to delete chat. Please try again.');
-    } finally {
-      setDeletingId(null);
+    // For authenticated users, save to Supabase
+    if (!supabase) {
+      throw new Error('Supabase not configured');
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader className="animate-spin text-blue-500" size={24} />
-      </div>
-    );
+    const { error } = await supabase
+      .from('chat_sessions')
+      .upsert({
+        id: sessionId,
+        user_id: userId,
+        title,
+        mode,
+        messages: JSON.stringify(messages),
+        last_updated: new Date().toISOString()
+      });
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error saving chat session:', error);
+    throw error;
   }
-
-  if (sessions.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm">
-        No chat history yet. Start a new conversation!
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {sessions.map((session) => (
-        <div
-          key={session.id}
-          className={`group relative p-3 rounded-xl transition-all ${
-            currentSessionId === session.id
-              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-              : 'hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400'
-          } ${deletingId === session.id ? 'opacity-50 pointer-events-none' : ''}`}
-        >
-          {editingId === session.id ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveEdit(session.id);
-                  if (e.key === 'Escape') handleCancelEdit();
-                }}
-                className="flex-1 px-2 py-1 text-sm bg-white dark:bg-[#161B22] border border-blue-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
-                autoFocus
-              />
-              <button
-                onClick={() => handleSaveEdit(session.id)}
-                className="p-1 hover:bg-green-100 dark:hover:bg-green-900/20 rounded text-green-600 dark:text-green-400"
-              >
-                <Check size={16} />
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-600 dark:text-red-400"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ) : (
-            <>
-              <div
-                onClick={() => onSelectChat(session)}
-                className="flex items-center gap-3 cursor-pointer"
-              >
-                <MessageSquare size={16} className="flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{session.title}</p>
-                  <p className="text-xs opacity-70">
-                    {new Date(session.lastUpdated).toLocaleDateString()} • {session.messages.length} messages
-                  </p>
-                </div>
-              </div>
-              
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStartEdit(session);
-                  }}
-                  className="p-1.5 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded text-blue-600 dark:text-blue-400"
-                  title="Rename"
-                >
-                  <Edit2 size={14} />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(session.id);
-                  }}
-                  className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/20 rounded text-red-600 dark:text-red-400"
-                  title="Delete"
-                  disabled={deletingId === session.id}
-                >
-                  {deletingId === session.id ? (
-                    <Loader className="animate-spin" size={14} />
-                  ) : (
-                    <Trash2 size={14} />
-                  )}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      ))}
-    </div>
-  );
 };
+
+/**
+ * Get all chat sessions for a user
+ */
+export const getChatSessions = async (userId: string): Promise<ChatSession[]> => {
+  try {
+    // For guest users, get from localStorage
+    if (userId.startsWith('guest_')) {
+      return getLocalChatSessions(userId);
+    }
+
+    // For authenticated users, get from Supabase
+    if (!supabase) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('last_updated', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(session => ({
+      id: session.id,
+      userId: session.user_id,
+      title: session.title,
+      mode: session.mode as ChatMode,
+      messages: JSON.parse(session.messages),
+      lastUpdated: new Date(session.last_updated).getTime()
+    }));
+  } catch (error) {
+    console.error('Error fetching chat sessions:', error);
+    return [];
+  }
+};
+
+/**
+ * Delete a chat session
+ */
+export const deleteChatSession = async (sessionId: string, userId: string): Promise<void> => {
+  try {
+    // For guest users
+    if (userId.startsWith('guest_')) {
+      const sessions = getLocalChatSessions(userId);
+      const filtered = sessions.filter(s => s.id !== sessionId);
+      localStorage.setItem(`jainn_chat_sessions_${userId}`, JSON.stringify(filtered));
+      return;
+    }
+
+    // For authenticated users
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
+    const { error } = await supabase
+      .from('chat_sessions')
+      .delete()
+      .eq('id', sessionId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting chat session:', error);
+    throw error;
+  }
+};
+
+/**
+ * Rename a chat session
+ */
+export const renameChatSession = async (
+  sessionId: string,
+  userId: string,
+  newTitle: string
+): Promise<void> => {
+  try {
+    // For guest users
+    if (userId.startsWith('guest_')) {
+      const sessions = getLocalChatSessions(userId);
+      const session = sessions.find(s => s.id === sessionId);
+      if (session) {
+        session.title = newTitle;
+        session.lastUpdated = Date.now();
+        localStorage.setItem(`jainn_chat_sessions_${userId}`, JSON.stringify(sessions));
+      }
+      return;
+    }
+
+    // For authenticated users
+    if (!supabase) {
+      throw new Error('Supabase not configured');
+    }
+
+    const { error } = await supabase
+      .from('chat_sessions')
+      .update({ 
+        title: newTitle,
+        last_updated: new Date().toISOString()
+      })
+      .eq('id', sessionId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error renaming chat session:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate a smart title from the first user message
+ */
+export const generateChatTitle = (messages: Message[]): string => {
+  const firstUserMessage = messages.find(m => m.role === 'user');
+  if (!firstUserMessage) return 'New Chat';
+
+  const content = firstUserMessage.content.trim();
+  if (content.length <= 40) return content;
+
+  // Extract first sentence or 40 characters
+  const firstSentence = content.split(/[.!?]/)[0];
+  if (firstSentence.length <= 40) return firstSentence;
+
+  return content.substring(0, 37) + '...';
+};
+
+/**
+ * Helper: Get chat sessions from localStorage
+ */
+function getLocalChatSessions(userId: string): ChatSession[] {
+  try {
+    const data = localStorage.getItem(`jainn_chat_sessions_${userId}`);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error parsing local chat sessions:', error);
+    return [];
+  }
+}
