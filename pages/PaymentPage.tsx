@@ -1,0 +1,367 @@
+import React, { useState } from 'react';
+import { Logo } from '../components/Logo';
+import { Button } from '../components/Button';
+import { User, UserTier } from '../types';
+import { Check, Crown, Sparkles, Tag, ArrowLeft, Shield, Lock } from 'lucide-react';
+
+interface PaymentPageProps {
+  user: User;
+  selectedPlan: 'pro' | 'ultra';
+  onBack: () => void;
+  onPaymentSuccess: (tier: UserTier) => void;
+}
+
+export const PaymentPage: React.FC<PaymentPageProps> = ({
+  user,
+  selectedPlan,
+  onBack,
+  onPaymentSuccess
+}) => {
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{code: string, discount: number} | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  // Valid coupon codes (in production, verify these server-side)
+  const VALID_COUPONS: {[key: string]: {discount: number, type: 'percentage' | 'fixed'}} = {
+    'JAINN50': { discount: 50, type: 'percentage' },
+    'WELCOME25': { discount: 25, type: 'percentage' },
+    'EARLY100': { discount: 100, type: 'fixed' },
+    'LAUNCH2025': { discount: 30, type: 'percentage' }
+  };
+
+  const planDetails = {
+    pro: {
+      name: 'Pro Plan',
+      price: 900, // ₹9 in paise (Razorpay uses smallest currency unit)
+      originalPrice: 900,
+      features: [
+        'Multi-Agent Mode',
+        '50,000 tokens/day',
+        '20 images/day',
+        '500 chat history',
+        'Priority support'
+      ],
+      icon: <Crown size={24} className="text-yellow-500" />
+    },
+    ultra: {
+      name: 'Ultra Plan',
+      price: 1900,
+      originalPrice: 1900,
+      features: [
+        'Everything in Pro',
+        'Unlimited tokens',
+        '30 images/day',
+        'Custom themes',
+        '24/7 Premium support',
+        'Team collaboration'
+      ],
+      icon: <Sparkles size={24} className="text-purple-500" />
+    }
+  };
+
+  const plan = planDetails[selectedPlan];
+
+  const applyCoupon = () => {
+    setCouponError('');
+    const code = couponCode.toUpperCase().trim();
+    
+    if (!code) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    const coupon = VALID_COUPONS[code];
+    if (!coupon) {
+      setCouponError('Invalid coupon code');
+      return;
+    }
+
+    setAppliedCoupon({ code, discount: coupon.discount });
+    setCouponError('');
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
+
+  const calculateFinalPrice = () => {
+    if (!appliedCoupon) return plan.price;
+
+    const couponData = VALID_COUPONS[appliedCoupon.code];
+    if (couponData.type === 'percentage') {
+      return plan.price - (plan.price * couponData.discount / 100);
+    } else {
+      return Math.max(0, plan.price - couponData.discount);
+    }
+  };
+
+  const finalPrice = calculateFinalPrice();
+  const savings = plan.price - finalPrice;
+
+  const handlePayment = async () => {
+    setProcessing(true);
+
+    try {
+      // Load Razorpay script
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.body.appendChild(script);
+
+      script.onload = () => {
+        const options = {
+          key: import.meta.env.VITE_RAZORPAY_KEY_ID || '', // Add your Razorpay key
+          amount: finalPrice, // Amount in paise
+          currency: 'INR',
+          name: 'Jainn AI',
+          description: `${plan.name} - Monthly Subscription`,
+          image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"%3E%3Cpath d="M12 2.25C6.61522 2.25 2.25 6.61522 2.25 12C2.25 17.3848 6.61522 21.75 12 21.75C17.3848 21.75 21.75 17.3848 21.75 12C21.75 9.25164 20.6696 6.73357 18.8891 4.88909" stroke="%233B82F6" stroke-width="2.5" stroke-linecap="round" fill="none"/%3E%3C/svg%3E',
+          prefill: {
+            name: user.displayName || user.email.split('@')[0],
+            email: user.email,
+          },
+          notes: {
+            plan: selectedPlan,
+            userId: user.id,
+            couponCode: appliedCoupon?.code || 'none'
+          },
+          theme: {
+            color: '#3B82F6'
+          },
+          handler: function (response: any) {
+            console.log('Payment successful:', response);
+            
+            // Update user tier
+            const newTier = selectedPlan === 'pro' ? UserTier.PRO : UserTier.ULTRA;
+            onPaymentSuccess(newTier);
+          },
+          modal: {
+            ondismiss: function() {
+              setProcessing(false);
+            }
+          }
+        };
+
+        // @ts-ignore
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+        setProcessing(false);
+      };
+
+      script.onerror = () => {
+        setProcessing(false);
+        alert('Failed to load payment gateway. Please try again.');
+      };
+    } catch (error) {
+      console.error('Payment error:', error);
+      setProcessing(false);
+      alert('Payment failed. Please try again.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0D1117] p-4 sm:p-8">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-500 transition-colors"
+          >
+            <ArrowLeft size={20} />
+            Back
+          </button>
+          <Logo size={40} />
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Left: Plan Details */}
+          <div className="bg-white dark:bg-[#161B22] rounded-3xl p-8 border border-gray-200 dark:border-white/10 h-fit">
+            <div className="flex items-center gap-3 mb-6">
+              {plan.icon}
+              <h2 className="text-2xl font-bold dark:text-white">{plan.name}</h2>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-baseline gap-2 mb-2">
+                {savings > 0 && (
+                  <span className="text-lg text-gray-400 line-through">
+                    ₹{(plan.originalPrice / 100).toFixed(2)}
+                  </span>
+                )}
+                <span className="text-4xl font-bold dark:text-white">
+                  ₹{(finalPrice / 100).toFixed(2)}
+                </span>
+                <span className="text-gray-500">/month</span>
+              </div>
+              {savings > 0 && (
+                <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-sm font-medium">
+                  <Tag size={14} />
+                  You save ₹{(savings / 100).toFixed(2)}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 mb-8">
+              {plan.features.map((feature, idx) => (
+                <div key={idx} className="flex items-center gap-3 text-gray-700 dark:text-gray-300">
+                  <Check size={18} className="text-green-500 flex-shrink-0" />
+                  <span>{feature}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Trust Badges */}
+            <div className="pt-6 border-t border-gray-200 dark:border-white/10">
+              <div className="flex items-center justify-center gap-6 text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-2">
+                  <Shield size={16} className="text-green-500" />
+                  <span>Secure Payment</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Lock size={16} className="text-blue-500" />
+                  <span>SSL Encrypted</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Payment Form */}
+          <div className="space-y-6">
+            {/* Coupon Code */}
+            <div className="bg-white dark:bg-[#161B22] rounded-3xl p-8 border border-gray-200 dark:border-white/10">
+              <h3 className="text-lg font-bold mb-4 dark:text-white flex items-center gap-2">
+                <Tag size={20} className="text-blue-500" />
+                Have a Coupon Code?
+              </h3>
+
+              {!appliedCoupon ? (
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Enter code (e.g., JAINN50)"
+                      className="flex-1 px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#0D1117] border border-gray-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
+                    />
+                    <Button
+                      onClick={applyCoupon}
+                      disabled={!couponCode.trim()}
+                      className="px-6"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                  {couponError && (
+                    <p className="text-sm text-red-500">{couponError}</p>
+                  )}
+                  
+                  {/* Available Coupons Hint */}
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-500/30">
+                    <p className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-2">
+                      💡 Try these codes:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.keys(VALID_COUPONS).map((code) => (
+                        <button
+                          key={code}
+                          onClick={() => {
+                            setCouponCode(code);
+                            setCouponError('');
+                          }}
+                          className="px-3 py-1 bg-white dark:bg-[#161B22] border border-blue-300 dark:border-blue-500/30 rounded-lg text-xs font-mono hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                        >
+                          {code}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-500/30">
+                  <div className="flex items-center gap-3">
+                    <Check size={20} className="text-green-500" />
+                    <div>
+                      <p className="font-bold text-green-600 dark:text-green-400">
+                        {appliedCoupon.code}
+                      </p>
+                      <p className="text-sm text-green-600 dark:text-green-400">
+                        {appliedCoupon.discount}% discount applied
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removeCoupon}
+                    className="text-sm text-red-500 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Order Summary */}
+            <div className="bg-white dark:bg-[#161B22] rounded-3xl p-8 border border-gray-200 dark:border-white/10">
+              <h3 className="text-lg font-bold mb-4 dark:text-white">Order Summary</h3>
+              
+              <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                  <span>{plan.name}</span>
+                  <span>₹{(plan.originalPrice / 100).toFixed(2)}</span>
+                </div>
+                
+                {savings > 0 && (
+                  <div className="flex justify-between text-green-600 dark:text-green-400">
+                    <span>Discount</span>
+                    <span>-₹{(savings / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                  <span>GST (18%)</span>
+                  <span>₹{((finalPrice * 0.18) / 100).toFixed(2)}</span>
+                </div>
+                
+                <div className="pt-3 border-t border-gray-200 dark:border-white/10 flex justify-between text-xl font-bold dark:text-white">
+                  <span>Total</span>
+                  <span>₹{((finalPrice * 1.18) / 100).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={handlePayment}
+                disabled={processing}
+                className="w-full py-4 text-lg"
+              >
+                {processing ? 'Processing...' : 'Proceed to Payment'}
+              </Button>
+
+              <p className="text-xs text-center text-gray-500 mt-4">
+                By continuing, you agree to our Terms of Service and Privacy Policy
+              </p>
+            </div>
+
+            {/* Payment Methods */}
+            <div className="bg-white dark:bg-[#161B22] rounded-3xl p-6 border border-gray-200 dark:border-white/10">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">
+                Accepted Payment Methods:
+              </p>
+              <div className="flex items-center justify-center gap-4 opacity-60">
+                <div className="text-xs font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  UPI
+                </div>
+                <div className="text-xs font-bold">CARDS</div>
+                <div className="text-xs font-bold">NET BANKING</div>
+                <div className="text-xs font-bold">WALLETS</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
