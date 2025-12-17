@@ -182,11 +182,19 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ user, userProf
           </div>
 
           <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
-            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
-              <Calendar size={14} /> Member Since
-            </label>
-            <p className="text-sm font-medium dark:text-white">December 2024</p>
-          </div>
+  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+    <Calendar size={14} /> Member Since
+  </label>
+  <p className="text-sm font-medium dark:text-white">
+    {userProfile?.created_at 
+      ? new Date(userProfile.created_at).toLocaleDateString('en-US', { 
+          month: 'long', 
+          year: 'numeric' 
+        })
+      : 'December 2025'
+    }
+  </p>
+</div>
 
           {/* Usage Stats */}
           <div className="p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl border border-blue-200 dark:border-blue-500/30">
