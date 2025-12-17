@@ -171,7 +171,8 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
     files: uploadedFiles.length > 0 ? uploadedFiles : undefined
   };
 
-  setMessages(prev => [...prev, userMsg]);
+  const newMessages = [...messages, userMsg];
+  setMessages(newMessages);
   setInput('');
   setUploadedFiles([]);
   setIsTyping(true);
@@ -184,14 +185,21 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
       const imageUrl = await generateImage(prompt);
       if (imageUrl) {
         aiMsg = {
-          id: Date.now().toString(),
+          id: (Date.now() + 1).toString(),
           role: 'model',
           model: 'Imagen 3.0',
           content: imageUrl,
           isImage: true,
           timestamp: Date.now()
         };
-        setMessages(prev => [...prev, aiMsg]);
+        const updatedMessages = [...newMessages, aiMsg];
+        setMessages(updatedMessages);
+        
+        // Save after image generation
+        const title = newMessages.length === 1 ? generateChatTitle([userMsg]) : 
+                     chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
+        await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
+        await loadChatSessions();
       } else {
         throw new Error("Failed to generate image");
       }
@@ -209,8 +217,17 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
         content: response,
         timestamp: Date.now()
       };
-      setMessages(prev => [...prev, aiMsg]);
+      const updatedMessages = [...newMessages, aiMsg];
+      setMessages(updatedMessages);
+      
+      // Save after single model response
+      const title = newMessages.length === 1 ? generateChatTitle([userMsg]) : 
+                   chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
+      await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
+      await loadChatSessions();
+      
     } else {
+      // Multi-agent mode
       const models = [ModelType.GEMINI, ModelType.LLAMA, ModelType.MISTRAL];
       const responses = await Promise.all(models.map(async (m) => {
         return {
@@ -226,45 +243,47 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
       }));
 
       const multiMsg: Message = {
-        id: Date.now().toString(),
+        id: (Date.now() + 1).toString(),
         role: 'model',
         content: 'Multi-Agent Response',
         timestamp: Date.now(),
         multiResponses: multiResponses
       };
       
-      setMessages(prev => [...prev, multiMsg]);
+      const updatedMessages = [...newMessages, multiMsg];
+      setMessages(updatedMessages);
+      
+      // Save after multi-agent response
+      const title = newMessages.length === 1 ? generateChatTitle([userMsg]) : 
+                   chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
+      await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
+      await loadChatSessions();
 
+      // Generate referee analysis in background
       generateRefereeAnalysis(userMsg.content, responses).then(analysis => {
         console.log("Referee Analysis:", analysis);
       });
     }
 
-    // Save chat session
-    if (messages.length === 0) {
-      // First message - generate title
-      const title = generateChatTitle([userMsg]);
-      if (aiMsg) {
-        await saveChatSession(user.id, currentSessionId, title, mode, [userMsg, aiMsg]);
-      }
-    } else if (messages.length > 0) {
-      // Update existing session
-      const currentSession = chatSessions.find(s => s.id === currentSessionId);
-      const title = currentSession?.title || generateChatTitle(messages);
-      await saveChatSession(user.id, currentSessionId, title, mode, [...messages]);
-    }
-    
-    await loadChatSessions();
-
   } catch (error) {
-    console.error(error);
+    console.error('Send message error:', error);
     const errorMsg: Message = {
-      id: Date.now().toString(),
+      id: (Date.now() + 1).toString(),
       role: 'model',
       content: "I encountered an error. Please check your API configuration or try again.",
       timestamp: Date.now()
     };
-    setMessages(prev => [...prev, errorMsg]);
+    const updatedMessages = [...newMessages, errorMsg];
+    setMessages(updatedMessages);
+    
+    // Even save error messages
+    try {
+      const title = chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
+      await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
+      await loadChatSessions();
+    } catch (saveError) {
+      console.error('Failed to save error message:', saveError);
+    }
   } finally {
     setIsTyping(false);
   }
@@ -806,18 +825,16 @@ return (
                               {user.tier === 'guest' && 'Sign up to save your progress'}
                             </p>
                           </div>
-                          {user.tier !== 'ultra' && (
+                          {user.tier !== 'ultra' && onUpgrade && (
   <button 
     onClick={() => {
-      if (onUpgrade) {
-        const targetPlan = user.tier === 'free' || user.tier === 'guest' ? 'pro' : 'ultra';
-        onUpgrade(targetPlan);
-        setSettingsOpen(false);
-      }
+      const targetPlan = user.tier === 'free' || user.tier === 'guest' ? 'pro' : 'ultra';
+      onUpgrade(targetPlan);
+      setSettingsOpen(false);
     }}
     className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap"
   >
-    Upgrade Plan
+    {user.tier === 'free' || user.tier === 'guest' ? 'Upgrade to Pro' : 'Upgrade to Ultra'}
   </button>
 )}
                         </div>
