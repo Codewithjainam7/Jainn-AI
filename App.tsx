@@ -290,14 +290,14 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
 
   return (
     <>
-      {currentPage === 'landing' && (
+     {currentPage === 'landing' && (
   <LandingPage 
     onNavigate={handleNavigate} 
     toggleTheme={toggleTheme} 
     isDark={isDark}
     onUpgrade={handleUpgrade}  // ADD THIS LINE
   />
-)}
+  )}
       
       {currentPage === 'login' && (
         <AuthPage 
