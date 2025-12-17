@@ -6,7 +6,7 @@ import { PolicyPage } from './pages/PolicyPages';
 import { AuthCallback } from './pages/AuthCallback';
 import { PaymentPage } from './pages/PaymentPage';
 import { Logo } from './components/Logo';
-import { User } from './types';
+import { User, UserTier } from './types';
 import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
 
 // Netflix-style Boot Animation Component
@@ -97,7 +97,6 @@ const App: React.FC = () => {
           if (currentUser) {
             console.log('✅ User session found:', currentUser.email);
             await loadUserProfile(currentUser.id, currentUser.email || '');
-            // Don't show boot animation here, it will be shown after successful auth
           } else {
             console.log('ℹ️ No active session');
           }
@@ -135,15 +134,17 @@ const App: React.FC = () => {
       }, 1500);
     }
   };
-const handleUpgrade = (plan: 'pro' | 'ultra') => {
-  if (user?.tier === 'guest') {
-    alert('Please sign up or log in to upgrade your plan');
-    handleNavigate('login');
-    return;
-  }
-  setSelectedPlan(plan);
-  handleNavigate('payment');
-};
+
+  const handleUpgrade = (plan: 'pro' | 'ultra') => {
+    if (user?.tier === 'guest') {
+      alert('Please sign up or log in to upgrade your plan');
+      handleNavigate('login');
+      return;
+    }
+    setSelectedPlan(plan);
+    handleNavigate('payment');
+  };
+
   const handlePaymentSuccess = (newTier: 'pro' | 'ultra') => {
     if (!user) return;
     
@@ -174,6 +175,7 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
       alert('🎉 Upgrade successful! Enjoy your new features.');
     }
   };
+
   const loadUserProfile = async (userId: string, email: string) => {
     try {
       let profile = await getUserProfile(userId);
@@ -193,7 +195,7 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
       const userData: User = {
         id: profile.id,
         email: profile.email,
-        tier: profile.tier as any,
+        tier: profile.tier as UserTier,
         tokensUsed: profile.tokens_used,
         imagesGenerated: profile.images_generated,
         themeColor: profile.theme_color,
@@ -225,16 +227,16 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
   };
 
   const handleLogin = (userData: User) => {
-  console.log('✅ User logged in:', userData.email);
-  setUser(userData);
-  
-  // ALWAYS show Netflix animation for all login types
-  setShowBootAnimation(true);
-  setTimeout(() => {
-    setCurrentPage('chat');
-    setShowBootAnimation(false);
-  }, 2800);
-};
+    console.log('✅ User logged in:', userData.email);
+    setUser(userData);
+    
+    // ALWAYS show Netflix animation for all login types
+    setShowBootAnimation(true);
+    setTimeout(() => {
+      setCurrentPage('chat');
+      setShowBootAnimation(false);
+    }, 2800);
+  };
 
   const handleLogout = async () => {
     try {
@@ -290,14 +292,14 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
 
   return (
     <>
-     {currentPage === 'landing' && (
-  <LandingPage 
-    onNavigate={handleNavigate} 
-    toggleTheme={toggleTheme} 
-    isDark={isDark}
-    onUpgrade={handleUpgrade}  // ADD THIS LINE
-  />
-  )}
+      {currentPage === 'landing' && (
+        <LandingPage 
+          onNavigate={handleNavigate} 
+          toggleTheme={toggleTheme} 
+          isDark={isDark}
+          onUpgrade={handleUpgrade}
+        />
+      )}
       
       {currentPage === 'login' && (
         <AuthPage 
@@ -307,11 +309,12 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
       )}
 
       {policyPage && (
-  <PolicyPage 
-    type={policyPage}
-    onBack={() => setPolicyPage(null)}
-  />
-)}
+        <PolicyPage 
+          type={policyPage}
+          onBack={() => setPolicyPage(null)}
+        />
+      )}
+
       {currentPage === 'auth-callback' && (
         <AuthCallback 
           onLogin={handleLogin}
@@ -319,23 +322,23 @@ const handleUpgrade = (plan: 'pro' | 'ultra') => {
       )}
 
       {currentPage === 'chat' && user && (
-  <ChatPage 
-    user={user} 
-    onLogout={handleLogout}
-    onHome={() => handleNavigate('landing')}
-    onUpdateUser={handleUpdateUser}
-    onUpgrade={handleUpgrade}  // ADD THIS LINE
-  />
-)}
+        <ChatPage 
+          user={user} 
+          onLogout={handleLogout}
+          onHome={() => handleNavigate('landing')}
+          onUpdateUser={handleUpdateUser}
+          onUpgrade={handleUpgrade}
+        />
+      )}
 
       {currentPage === 'payment' && user && selectedPlan && (
-  <PaymentPage
-    user={user}
-    selectedPlan={selectedPlan}
-    onBack={() => handleNavigate('chat')}
-    onPaymentSuccess={handlePaymentSuccess}
-  />
-)}
+        <PaymentPage
+          user={user}
+          selectedPlan={selectedPlan}
+          onBack={() => handleNavigate('chat')}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
 
       {currentPage === 'chat' && !user && (
         <div className="fixed inset-0 bg-[#0D1117] flex flex-col items-center justify-center">
