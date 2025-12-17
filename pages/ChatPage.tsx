@@ -162,7 +162,6 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
 
   const isImageCmd = input.toLowerCase().startsWith('/image');
   
-  // Create user message with files
   const userMsg: Message = {
     id: Date.now().toString(),
     role: 'user',
@@ -173,15 +172,17 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
 
   setMessages(prev => [...prev, userMsg]);
   setInput('');
-  setUploadedFiles([]); // Clear files after sending
+  setUploadedFiles([]);
   setIsTyping(true);
 
   try {
+    let aiMsg: Message | undefined;
+
     if (isImageCmd) {
       const prompt = input.replace('/image', '').trim();
       const imageUrl = await generateImage(prompt);
       if (imageUrl) {
-        const imgMsg: Message = {
+        aiMsg = {
           id: Date.now().toString(),
           role: 'model',
           model: 'Imagen 3.0',
@@ -189,19 +190,18 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
           isImage: true,
           timestamp: Date.now()
         };
-        setMessages(prev => [...prev, imgMsg]);
+        setMessages(prev => [...prev, aiMsg]);
       } else {
         throw new Error("Failed to generate image");
       }
     } else if (mode === ChatMode.SINGLE) {
-      // Include file analysis in the prompt
       let enhancedPrompt = userMsg.content;
       if (uploadedFiles.length > 0) {
         enhancedPrompt += `\n\n[User has attached ${uploadedFiles.length} file(s): ${uploadedFiles.map(f => f.name).join(', ')}]`;
       }
       
       const response = await generateResponse(enhancedPrompt, currentModel, uploadedFiles);
-      const aiMsg: Message = {
+      aiMsg = {
         id: (Date.now() + 1).toString(),
         role: 'model',
         model: currentModel.toUpperCase(),
@@ -210,7 +210,6 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
       };
       setMessages(prev => [...prev, aiMsg]);
     } else {
-      // Multi-agent with files
       const models = [ModelType.GEMINI, ModelType.LLAMA, ModelType.MISTRAL];
       const responses = await Promise.all(models.map(async (m) => {
         return {
@@ -239,6 +238,23 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
         console.log("Referee Analysis:", analysis);
       });
     }
+
+    // Save chat session
+    if (messages.length === 0) {
+      // First message - generate title
+      const title = generateChatTitle([userMsg]);
+      if (aiMsg) {
+        await saveChatSession(user.id, currentSessionId, title, mode, [userMsg, aiMsg]);
+      }
+    } else if (messages.length > 0) {
+      // Update existing session
+      const currentSession = chatSessions.find(s => s.id === currentSessionId);
+      const title = currentSession?.title || generateChatTitle(messages);
+      await saveChatSession(user.id, currentSessionId, title, mode, [...messages]);
+    }
+    
+    await loadChatSessions();
+
   } catch (error) {
     console.error(error);
     const errorMsg: Message = {
@@ -248,19 +264,7 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
       timestamp: Date.now()
     };
     setMessages(prev => [...prev, errorMsg]);
-  }
-    if (messages.length === 1) {
-  // First message - generate title
-  const title = generateChatTitle([userMsg]);
-  await saveChatSession(user.id, currentSessionId, title, mode, [userMsg, aiMsg]);
-} else if (messages.length > 1) {
-  // Update existing session
-  const currentSession = chatSessions.find(s => s.id === currentSessionId);
-  const title = currentSession?.title || generateChatTitle(messages);
-  await saveChatSession(user.id, currentSessionId, title, mode, [...messages]);
-}
-await loadChatSessions();
-  finally {
+  } finally {
     setIsTyping(false);
   }
 };
