@@ -47,6 +47,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       setIsAnimating(false);
       setPassword('');
       setConfirmPassword('');
+      setEmail('');
     }, 300);
   };
 
@@ -67,8 +68,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
         return;
       }
 
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Please enter a valid email address');
+        setLoading(false);
+        return;
+      }
+
       if (!isLogin) {
-        // SIGN UP FLOW
+        // SIGN UP FLOW - FIXED
         if (password !== confirmPassword) {
           setError("Passwords do not match");
           setLoading(false);
@@ -83,68 +92,91 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
 
         console.log('📝 Attempting sign up for:', email);
 
+        // FIXED: Check if user exists first
+        const { data: existingUsers } = await supabase
+          .from('users')
+          .select('email')
+          .eq('email', email.toLowerCase());
+
+        if (existingUsers && existingUsers.length > 0) {
+          setError('This email is already registered. Please sign in instead.');
+          setLoading(false);
+          return;
+        }
+
         const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
+          email: email.toLowerCase(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
-            data: {
-              email_confirm: true
-            }
           }
         });
 
         if (signUpError) {
           console.error('❌ Sign up error:', signUpError);
-          throw signUpError;
+          
+          // Better error messages
+          if (signUpError.message.includes('already registered')) {
+            setError('This email is already registered. Please sign in instead.');
+            setTimeout(() => setIsLogin(true), 2000);
+          } else if (signUpError.message.includes('weak password')) {
+            setError('Password is too weak. Use a stronger password with numbers and symbols.');
+          } else {
+            setError(signUpError.message);
+          }
+          
+          setLoading(false);
+          return;
         }
 
         console.log('✅ Sign up response:', data);
 
         if (data.user) {
-          // Check if email confirmation is required
-          if (data.user.identities && data.user.identities.length === 0) {
-            // User already exists
-            showModal(
-              'Account Exists',
-              'An account with this email already exists. Please sign in instead.',
-              'warning'
-            );
-            setIsLogin(true);
-          } else {
-            // New user - show email confirmation message
-            showModal(
-              'Check Your Email! 📧',
-              `We've sent a verification link to ${email}. Please check your inbox (and spam folder) to verify your account and complete registration.`,
-              'success'
-            );
-            
-            // Clear form
-            setEmail('');
-            setPassword('');
-            setConfirmPassword('');
-            
-            // Don't auto-switch to login - let user read the message
-          }
+          showModal(
+            'Check Your Email! 📧',
+            `We've sent a verification link to ${email}. Please check your inbox (and spam folder) to verify your account before signing in.`,
+            'success'
+          );
+          
+          // Clear form and switch to login after modal close
+          setEmail('');
+          setPassword('');
+          setConfirmPassword('');
+          setTimeout(() => setIsLogin(true), 3000);
         }
+        
       } else {
-        // SIGN IN FLOW
+        // SIGN IN FLOW - FIXED
         console.log('🔐 Attempting sign in for:', email);
 
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.toLowerCase(),
           password,
         });
 
         if (signInError) {
           console.error('❌ Sign in error:', signInError);
-          throw signInError;
+          
+          // Better error messages
+          if (signInError.message.includes('Invalid login credentials')) {
+            setError('Invalid email or password. Please check and try again.');
+          } else if (signInError.message.includes('Email not confirmed')) {
+            setError('Please verify your email before signing in. Check your inbox.');
+          } else if (signInError.message.includes('User not found')) {
+            setError('No account found with this email. Please sign up first.');
+          } else {
+            setError(signInError.message);
+          }
+          
+          setLoading(false);
+          return;
         }
 
         console.log('✅ Sign in successful:', data.user?.email);
 
         if (data.user) {
-          if (!data.user.email_confirmed_at) {
+          // Check email confirmation
+          if (!data.user.email_confirmed_at && !data.user.confirmed_at) {
             showModal(
               'Email Not Verified',
               'Please verify your email address before signing in. Check your inbox for the verification link.',
@@ -170,19 +202,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
     } catch (err: any) {
       console.error('Auth error:', err);
-      
-      // User-friendly error messages
-      let errorMessage = err.message || 'Authentication failed';
-      
-      if (err.message?.includes('Invalid login credentials')) {
-        errorMessage = 'Invalid email or password. Please try again.';
-      } else if (err.message?.includes('Email not confirmed')) {
-        errorMessage = 'Please verify your email before signing in.';
-      } else if (err.message?.includes('User already registered')) {
-        errorMessage = 'This email is already registered. Please sign in.';
-      }
-      
-      setError(errorMessage);
+      setError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -200,12 +220,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
 
       console.log('🔐 Initiating Google Sign-In...');
-      const { error } = await signInWithGoogle();
-      
-      if (error) {
-        console.error('❌ Google sign-in error:', error);
-        throw error;
-      }
+      await signInWithGoogle();
       
       console.log('✅ Redirecting to Google...');
       // Don't set loading to false - user is being redirected
