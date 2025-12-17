@@ -7,6 +7,7 @@ import { AuthCallback } from './pages/AuthCallback';
 import { PaymentPage } from './pages/PaymentPage';
 import { Logo } from './components/Logo';
 import { User, UserTier } from './types';
+import { PaymentSuccessPage } from './pages/PaymentSuccessPage';
 import { supabase, getCurrentUser, getUserProfile, upsertUserProfile } from './lib/supabase';
 
 // Netflix-style Boot Animation Component
@@ -51,6 +52,10 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showBootAnimation, setShowBootAnimation] = useState(false);
   const [currentPage, setCurrentPage] = useState('landing');
+  const [paymentSuccessData, setPaymentSuccessData] = useState<{
+  plan: 'pro' | 'ultra';
+  wasFree: boolean;
+} | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [policyPage, setPolicyPage] = useState<'refund' | 'contact' | 'privacy' | 'terms' | 'shipping' | null>(null);
   const [isDark, setIsDark] = useState(true);
@@ -145,36 +150,36 @@ const App: React.FC = () => {
     handleNavigate('payment');
   };
 
-  const handlePaymentSuccess = (newTier: 'pro' | 'ultra') => {
-    if (!user) return;
-    
-    const updatedUser: User = {
-      ...user,
-      tier: newTier as UserTier
-    };
-    
-    // Update localStorage or Supabase
-    if (supabase && !user.id.startsWith('guest_')) {
-      upsertUserProfile({
-        id: user.id,
-        email: user.email,
-        tier: newTier,
-        tokens_used: user.tokensUsed,
-        images_generated: user.imagesGenerated,
-        theme_color: user.themeColor,
-        display_name: user.displayName
-      }).then(() => {
-        setUser(updatedUser);
-        handleNavigate('chat');
-        alert('🎉 Upgrade successful! Enjoy your new features.');
-      });
-    } else {
-      localStorage.setItem('jainnUser', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      handleNavigate('chat');
-      alert('🎉 Upgrade successful! Enjoy your new features.');
-    }
+  const handlePaymentSuccess = (newTier: 'pro' | 'ultra', wasFree: boolean) => {
+  if (!user) return;
+  
+  const updatedUser: User = {
+    ...user,
+    tier: newTier as UserTier
   };
+  
+  // Update localStorage or Supabase
+  if (supabase && !user.id.startsWith('guest_')) {
+    upsertUserProfile({
+      id: user.id,
+      email: user.email,
+      tier: newTier,
+      tokens_used: user.tokensUsed,
+      images_generated: user.imagesGenerated,
+      theme_color: user.themeColor,
+      display_name: user.displayName
+    }).then(() => {
+      setUser(updatedUser);
+      setCurrentPage('payment-success');
+      setPaymentSuccessData({ plan: newTier, wasFree });
+    });
+  } else {
+    localStorage.setItem('jainnUser', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    setCurrentPage('payment-success');
+    setPaymentSuccessData({ plan: newTier, wasFree });
+  }
+};
 
   const loadUserProfile = async (userId: string, email: string) => {
     try {
@@ -330,6 +335,17 @@ const App: React.FC = () => {
           onUpgrade={handleUpgrade}
         />
       )}
+
+      {currentPage === 'payment-success' && paymentSuccessData && (
+  <PaymentSuccessPage
+    plan={paymentSuccessData.plan}
+    wasFree={paymentSuccessData.wasFree}
+    onContinue={() => {
+      setCurrentPage('chat');
+      setPaymentSuccessData(null);
+    }}
+  />
+)}
 
       {currentPage === 'payment' && user && selectedPlan && (
         <PaymentPage
