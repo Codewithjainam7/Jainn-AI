@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
+import { PolicyPage } from './pages/PolicyPages';
 import { AuthCallback } from './pages/AuthCallback';
 import { PaymentPage } from './pages/PaymentPage';
 import { Logo } from './components/Logo';
