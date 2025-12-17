@@ -32,7 +32,6 @@ export interface MultiResponse {
   content: string;
   isWinner?: boolean;
 }
-
 export interface Message {
   id: string;
   role: 'user' | 'model' | 'referee';
@@ -42,6 +41,7 @@ export interface Message {
   timestamp: number;
   isImage?: boolean;
   selectedWinner?: string;
+  files?: UploadedFile[]; // ADD THIS LINE
 }
 
 export interface ChatSession {
