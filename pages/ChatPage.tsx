@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
+import { ChatHistory } from '../components/ChatHistory';
 import { CustomModal } from '../components/CustomModal';
 import { ProfileSettings } from '../components/ProfileSettings';
-
+import { saveChatSession, getChatSessions, generateChatTitle } from '../lib/chatHistory';
+import { MessageSquare, Edit2, Trash2, Loader } from 'lucide-react'; // Add these icons
 import { User, ChatMode, Message, ModelType, UserTier, MultiResponse } from '../types';
 import { generateResponse, generateRefereeAnalysis, generateImage } from '../services/gemini';
 import { supabase, upsertUserProfile } from '../lib/supabase';
@@ -18,6 +20,9 @@ interface ChatPageProps {
 export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUpdateUser }) => {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>(ChatMode.SINGLE); 
+  const [currentSessionId, setCurrentSessionId] = useState<string>(`session_${Date.now()}`);
+const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+const [loadingSessions, setLoadingSessions] = useState(false);
   const [currentModel, setCurrentModel] = useState<ModelType>(ModelType.GEMINI);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -62,6 +67,21 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
     };
     loadUserProfile();
   }, [user.id]);
+  useEffect(() => {
+  loadChatSessions();
+}, [user.id]);
+
+  const loadChatSessions = async () => {
+  try {
+    setLoadingSessions(true);
+    const sessions = await getChatSessions(user.id);
+    setChatSessions(sessions);
+  } catch (error) {
+    console.error('Failed to load chat sessions:', error);
+  } finally {
+    setLoadingSessions(false);
+  }
+};
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -227,9 +247,34 @@ const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null
       timestamp: Date.now()
     };
     setMessages(prev => [...prev, errorMsg]);
-  } finally {
+  }
+    if (messages.length === 1) {
+  // First message - generate title
+  const title = generateChatTitle([userMsg]);
+  await saveChatSession(user.id, currentSessionId, title, mode, [userMsg, aiMsg]);
+} else if (messages.length > 1) {
+  // Update existing session
+  const currentSession = chatSessions.find(s => s.id === currentSessionId);
+  const title = currentSession?.title || generateChatTitle(messages);
+  await saveChatSession(user.id, currentSessionId, title, mode, [...messages]);
+}
+await loadChatSessions();
+  finally {
     setIsTyping(false);
   }
+};
+
+  const handleNewChat = () => {
+  setMessages([]);
+  setCurrentSessionId(`session_${Date.now()}`);
+  setSidebarOpen(false);
+};
+
+const handleSelectSession = async (session: ChatSession) => {
+  setMessages(session.messages);
+  setCurrentSessionId(session.id);
+  setMode(session.mode);
+  setSidebarOpen(false);
 };
 
   const handleRegenerate = async (messageId: string) => {
@@ -353,15 +398,27 @@ return (
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 scrollbar-hide">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Recent</h3>
-          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-sm font-medium cursor-pointer truncate">
-            Quantum Computing Basics
-          </div>
-          <div className="p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400 text-sm cursor-pointer truncate transition-colors">
-            React Project Structure
-          </div>
-        </div>
+       <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 scrollbar-hide">
+  <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+    Chat History
+  </h3>
+  
+  {loadingSessions ? (
+    <div className="flex items-center justify-center py-8">
+      <Loader className="animate-spin text-blue-500" size={20} />
+    </div>
+  ) : chatSessions.length === 0 ? (
+    <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+      No chats yet
+    </p>
+  ) : (
+    <ChatHistory
+      userId={user.id}
+      onSelectChat={handleSelectSession}
+      currentSessionId={currentSessionId}
+    />
+  )}
+</div>
 
         <div className="p-4 border-t border-gray-100 dark:border-white/5">
           <div className="flex items-center gap-3 mb-4 px-2">
