@@ -312,35 +312,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, toggleThem
             </div>
 
             {/* Pro - Improved Visuals */}
-            <div className="relative p-8 rounded-[32px] bg-[#1E293B] dark:bg-[#1D2B45] text-white border border-blue-500/50 shadow-2xl scale-105 z-10 flex flex-col ring-1 ring-blue-500/50">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg whitespace-nowrap">Most Popular</div>
-              <div className="mb-4 text-sm font-bold uppercase tracking-wider text-blue-300">Pro</div>
-              <div className="text-4xl font-bold mb-6 text-white">$9<span className="text-lg text-blue-300/70 font-normal">/mo</span></div>
-              <ul className="space-y-4 mb-8 flex-1 text-sm">
-                <li className="flex items-center gap-3 text-gray-100 font-medium"><Check size={16} className="text-blue-400 shrink-0" /> Unlock Multi-Agent Mode</li>
-                <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> 50,000 tokens/day (10x)</li>
-                <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> 20 Images/day</li>
-                <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> 500 chat history</li>
-                <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> Custom Instructions</li>
-                <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> Priority Support</li>
-              </ul>
-              <Button onClick={() => onNavigate('login')} className="w-full bg-blue-600 text-white hover:bg-blue-500 shadow-blue-900/20 border-none">Upgrade to Pro</Button>
-            </div>
-
+<div className="relative p-8 rounded-[32px] bg-[#1E293B] dark:bg-[#1D2B45] text-white border border-blue-500/50 shadow-2xl scale-105 z-10 flex flex-col ring-1 ring-blue-500/50">
+  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg whitespace-nowrap">Most Popular</div>
+  <div className="mb-4 text-sm font-bold uppercase tracking-wider text-blue-300">Pro</div>
+  <div className="text-4xl font-bold mb-6 text-white">₹199<span className="text-lg text-blue-300/70 font-normal">/mo</span></div>
+  <ul className="space-y-4 mb-8 flex-1 text-sm">
+    <li className="flex items-center gap-3 text-gray-100 font-medium"><Check size={16} className="text-blue-400 shrink-0" /> Unlock Multi-Agent Mode</li>
+    <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> 50,000 tokens/day (10x)</li>
+    <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> 20 Images/day</li>
+    <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> 500 chat history</li>
+    <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> Custom Instructions</li>
+    <li className="flex items-center gap-3 text-gray-100"><Check size={16} className="text-blue-400 shrink-0" /> Priority Support</li>
+  </ul>
+  <Button onClick={() => onNavigate('login')} className="w-full bg-blue-600 text-white hover:bg-blue-500 shadow-blue-900/20 border-none">Upgrade to Pro</Button>
+</div>
             {/* Ultra */}
             <div className="p-8 rounded-[32px] bg-gray-50 dark:bg-[#161B22] border border-gray-200 dark:border-white/10 flex flex-col hover:border-purple-500/30 transition-colors">
-              <div className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">Ultra</div>
-              <div className="text-4xl font-bold mb-6 text-gray-900 dark:text-white">$19<span className="text-lg text-gray-500 font-normal">/mo</span></div>
-              <ul className="space-y-4 mb-8 flex-1 text-sm">
-                <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Unlimited tokens</li>
-                <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> 30 Images/day</li>
-                <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Full Customization (Fonts, HEX)</li>
-                <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Advanced Code & Web Agents</li>
-                <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> 24/7 Priority Support</li>
-                <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Team Collaboration</li>
-              </ul>
-              <Button onClick={() => onNavigate('login')} variant="secondary" className="w-full">Go Ultra</Button>
-            </div>
+  <div className="mb-4 text-sm font-bold uppercase tracking-wider text-gray-500">Ultra</div>
+  <div className="text-4xl font-bold mb-6 text-gray-900 dark:text-white">₹399<span className="text-lg text-gray-500 font-normal">/mo</span></div>
+  <ul className="space-y-4 mb-8 flex-1 text-sm">
+    <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Unlimited tokens</li>
+    <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> 30 Images/day</li>
+    <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Full Customization (Fonts, HEX)</li>
+    <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Advanced Code & Web Agents</li>
+    <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> 24/7 Priority Support</li>
+    <li className="flex items-center gap-3 text-gray-700 dark:text-gray-300"><Check size={16} className="text-purple-500 shrink-0" /> Team Collaboration</li>
+  </ul>
+  <Button onClick={() => onNavigate('login')} variant="secondary" className="w-full">Go Ultra</Button>
+</div>
           </div>
         </div>
       </section>
