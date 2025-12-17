@@ -8,7 +8,7 @@ interface PaymentPageProps {
   user: User;
   selectedPlan: 'pro' | 'ultra';
   onBack: () => void;
-  onPaymentSuccess: (tier: UserTier) => void;
+  onPaymentSuccess: (tier: 'pro' | 'ultra') => void;
 }
 
 export const PaymentPage: React.FC<PaymentPageProps> = ({
