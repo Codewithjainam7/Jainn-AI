@@ -19,7 +19,7 @@ interface ChatPageProps {
   onUpgrade?: (plan: 'pro' | 'ultra') => void;  // ADD THIS LINE
 }
 
-export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUpdateUser }) => {
+export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUpdateUser, onUpgrade }) => {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>(ChatMode.SINGLE); 
   const [currentSessionId, setCurrentSessionId] = useState<string>(`session_${Date.now()}`);
