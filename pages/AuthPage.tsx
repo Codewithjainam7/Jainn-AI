@@ -77,7 +77,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
       }
 
       if (!isLogin) {
-        // SIGN UP FLOW - FIXED
+        // ========== SIGN UP FLOW ==========
         if (password !== confirmPassword) {
           setError("Passwords do not match");
           setLoading(false);
@@ -92,31 +92,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
 
         console.log('📝 Attempting sign up for:', email);
 
-        // FIXED: Check if user exists first
-        const { data: existingUsers } = await supabase
-          .from('users')
-          .select('email')
-          .eq('email', email.toLowerCase());
-
-        if (existingUsers && existingUsers.length > 0) {
-          setError('This email is already registered. Please sign in instead.');
-          setLoading(false);
-          return;
-        }
-
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.toLowerCase(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              display_name: email.split('@')[0]
+            }
           }
         });
 
         if (signUpError) {
           console.error('❌ Sign up error:', signUpError);
           
-          // Better error messages
-          if (signUpError.message.includes('already registered')) {
+          if (signUpError.message.includes('already registered') || signUpError.message.includes('already been registered')) {
             setError('This email is already registered. Please sign in instead.');
             setTimeout(() => setIsLogin(true), 2000);
           } else if (signUpError.message.includes('weak password')) {
@@ -131,22 +121,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
 
         console.log('✅ Sign up response:', data);
 
-        if (data.user) {
+        // Check if user needs email confirmation
+        if (data.user && !data.user.confirmed_at) {
           showModal(
             'Check Your Email! 📧',
             `We've sent a verification link to ${email}. Please check your inbox (and spam folder) to verify your account before signing in.`,
             'success'
           );
           
-          // Clear form and switch to login after modal close
           setEmail('');
           setPassword('');
           setConfirmPassword('');
           setTimeout(() => setIsLogin(true), 3000);
+        } else if (data.user) {
+          // Email confirmation disabled or auto-confirmed
+          console.log('✅ User auto-confirmed, logging in...');
+          const userData: User = {
+            id: data.user.id,
+            email: data.user.email || '',
+            tier: UserTier.FREE,
+            tokensUsed: 0,
+            imagesGenerated: 0,
+            themeColor: '#3B82F6',
+            displayName: data.user.email?.split('@')[0] || 'User'
+          };
+          onLogin(userData);
         }
         
       } else {
-        // SIGN IN FLOW - FIXED
+        // ========== SIGN IN FLOW ==========
         console.log('🔐 Attempting sign in for:', email);
 
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
@@ -158,7 +161,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
           console.error('❌ Sign in error:', signInError);
           
           // Better error messages
-          if (signInError.message.includes('Invalid login credentials')) {
+          if (signInError.message.includes('Invalid login credentials') || signInError.message.includes('Invalid email or password')) {
             setError('Invalid email or password. Please check and try again.');
           } else if (signInError.message.includes('Email not confirmed')) {
             setError('Please verify your email before signing in. Check your inbox.');
@@ -175,8 +178,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
         console.log('✅ Sign in successful:', data.user?.email);
 
         if (data.user) {
-          // Check email confirmation
-          if (!data.user.email_confirmed_at && !data.user.confirmed_at) {
+          // FIXED: More flexible email confirmation check
+          const isConfirmed = data.user.email_confirmed_at || 
+                             data.user.confirmed_at || 
+                             data.session; // If we got a session, user is confirmed
+
+          if (!isConfirmed) {
             showModal(
               'Email Not Verified',
               'Please verify your email address before signing in. Check your inbox for the verification link.',
@@ -193,7 +200,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin, onNavigate }) => {
             tokensUsed: 0,
             imagesGenerated: 0,
             themeColor: '#3B82F6',
-            displayName: data.user.email?.split('@')[0] || 'User'
+            displayName: data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'User'
           };
           
           // This will trigger Netflix animation in App.tsx
