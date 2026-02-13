@@ -11,15 +11,57 @@ interface LandingPageProps {
 
 // Model Logos Components
 const GeminiLogo = () => (
-  <svg viewBox="0 0 24 24" className="w-12 h-12 grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.45 2.185a.998.998 0 0 0-.585-.585 10.024 10.024 0 0 1-5.636-5.637.997.997 0 0 0-1.874 0 10.022 10.022 0 0 1-5.637 5.637.998.998 0 0 0-.585.585 10.023 10.023 0 0 1-5.637 5.636.997.997 0 0 0 0 1.874 10.025 10.025 0 0 1 5.637 5.637.997.997 0 0 0 .585.585 10.022 10.022 0 0 1 5.637 5.637.997.997 0 0 0 1.874 0 10.022 10.022 0 0 1 5.636-5.637.997.997 0 0 0 .585-.585 10.024 10.024 0 0 1 5.637-5.637.998.998 0 0 0 0-1.874 10.023 10.023 0 0 1-5.637-5.636Z" fill="url(#geminiGrad)"/><defs><linearGradient id="geminiGrad" x1="2.253" y1="2.115" x2="21.19" y2="21.658" gradientUnits="userSpaceOnUse"><stop stopColor="#4EBAE4"/><stop offset=".432" stopColor="#4E65E4"/><stop offset=".776" stopColor="#C456C6"/><stop offset="1" stopColor="#D95641"/></linearGradient></defs></svg>
+  <svg viewBox="0 0 28 28" className="w-12 h-12 grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M14 28C14 21.75 9.53 16.55 3.61 15.28C2.42 15.03 1.22 14.92 0 14.92V13.08C1.22 13.08 2.42 12.97 3.61 12.72C9.53 11.45 14 6.25 14 0C14 6.25 18.47 11.45 24.39 12.72C25.58 12.97 26.78 13.08 28 13.08V14.92C26.78 14.92 25.58 15.03 24.39 15.28C18.47 16.55 14 21.75 14 28Z" fill="url(#geminiGrad)"/>
+    <defs>
+      <linearGradient id="geminiGrad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#4285F4"/>
+        <stop offset="0.33" stopColor="#9B72CB"/>
+        <stop offset="0.66" stopColor="#D96570"/>
+        <stop offset="1" stopColor="#D96570"/>
+      </linearGradient>
+    </defs>
+  </svg>
 );
 
 const MetaLogo = () => (
-   <svg viewBox="0 0 24 24" className="w-12 h-12 grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100 text-[#0668E1]" fill="currentColor"><path d="M16.037 6.942a5.558 5.558 0 0 0-3.905 1.583 5.556 5.556 0 0 0-3.903-1.583C4.162 6.942 2.126 9.387 2.126 13.06c0 2.213.916 4.356 2.378 5.634.697.608 1.523.957 2.375.957 1.408 0 2.59-.838 3.167-2.046.223-.464.385-.94.498-1.428.165-.72.637-2.14 1.517-2.14.896 0 1.353 1.455 1.515 2.164.113.486.275.96.498 1.423.57 1.193 1.743 2.027 3.136 2.027.868 0 1.708-.363 2.417-.983 1.457-1.274 2.372-3.407 2.372-5.615 0-3.673-2.036-6.118-5.96-6.118Zm-9.155 9.77c-.504 0-.962-.196-1.348-.535-.916-.8-1.464-2.203-1.464-3.645 0-2.32 1.252-3.833 3.493-3.833 1.517 0 2.627.87 3.25 2.33.242.566.38 1.25.405 2.062a7.35 7.35 0 0 1-.027.674c-.218.95-1.07 1.83-2.228 2.65-.562.398-1.314.297-2.08.297Zm10.236-.535c-.387.34-.845.535-1.35.535-.747 0-1.48-.1-2.035-.483-1.16-.798-2.016-1.677-2.24-2.623a7.485 7.485 0 0 1-.028-.674c.026-.826.168-1.515.414-2.083.626-1.446 1.735-2.31 3.237-2.31 2.235 0 3.483 1.513 3.483 3.833 0 1.443-.548 2.846-1.465 3.646l-.016.015Z"/></svg>
+  <svg viewBox="0 0 48 48" className="w-12 h-12 grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8.5 10C5.5 10 3 13.5 3 18.5C3 22 4.5 25.5 7 28C9 30 11.5 31 14 31C16 31 17.5 30.5 19 29C20.5 27 22 23.5 24 19.5C26 23.5 27.5 27 29 29C30.5 30.5 32 31 34 31C36.5 31 39 30 41 28C43.5 25.5 45 22 45 18.5C45 13.5 42.5 10 39.5 10C37 10 34.5 12 32 16C30 19.5 28 23 26 25.5C25 27 24.5 27.5 24 27.5C23.5 27.5 23 27 22 25.5C20 23 18 19.5 16 16C13.5 12 11 10 8.5 10Z" fill="url(#metaGrad)" stroke="none"/>
+    <defs>
+      <linearGradient id="metaGrad" x1="3" y1="10" x2="45" y2="31" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#0081FB"/>
+        <stop offset="0.5" stopColor="#0064E0"/>
+        <stop offset="1" stopColor="#0052CC"/>
+      </linearGradient>
+    </defs>
+  </svg>
 );
 
 const MistralLogo = () => (
-    <svg viewBox="0 0 24 24" className="w-12 h-12 grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100 text-[#FDBA74]" fill="currentColor"><path d="M4.69 16.594V5.625h2.89v8.328l3.11-2.672h3.812l-4.703 3.922 4.906 4.906H10.5l-2.922-3.078v3.078H4.69Z"/></svg>
+  <svg viewBox="0 0 28 28" className="w-12 h-12 grayscale hover:grayscale-0 transition-all duration-300 opacity-60 hover:opacity-100" xmlns="http://www.w3.org/2000/svg">
+    {/* Row 1 */}
+    <rect x="0" y="0" width="5" height="5" fill="#F7D046"/>
+    <rect x="11.5" y="0" width="5" height="5" fill="#F7D046"/>
+    <rect x="23" y="0" width="5" height="5" fill="#F7D046"/>
+    {/* Row 2 */}
+    <rect x="0" y="5.75" width="5" height="5" fill="#F2A73B"/>
+    <rect x="5.75" y="5.75" width="5" height="5" fill="#F2A73B"/>
+    <rect x="17.25" y="5.75" width="5" height="5" fill="#F2A73B"/>
+    <rect x="23" y="5.75" width="5" height="5" fill="#F2A73B"/>
+    {/* Row 3 */}
+    <rect x="0" y="11.5" width="5" height="5" fill="#EE792F"/>
+    <rect x="11.5" y="11.5" width="5" height="5" fill="#EE792F"/>
+    <rect x="23" y="11.5" width="5" height="5" fill="#EE792F"/>
+    {/* Row 4 */}
+    <rect x="0" y="17.25" width="5" height="5" fill="#EB5829"/>
+    <rect x="5.75" y="17.25" width="5" height="5" fill="#EB5829"/>
+    <rect x="17.25" y="17.25" width="5" height="5" fill="#EB5829"/>
+    <rect x="23" y="17.25" width="5" height="5" fill="#EB5829"/>
+    {/* Row 5 */}
+    <rect x="0" y="23" width="5" height="5" fill="#EA3326"/>
+    <rect x="11.5" y="23" width="5" height="5" fill="#EA3326"/>
+    <rect x="23" y="23" width="5" height="5" fill="#EA3326"/>
+  </svg>
 );
 
 const VeoLogo = () => (
