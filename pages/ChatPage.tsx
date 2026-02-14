@@ -15,6 +15,59 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
+// Separate component for CodeBlock to handle state
+const CodeBlock = ({ language, children, ...props }: any) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(String(children));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="rounded-xl overflow-hidden my-6 shadow-2xl border border-gray-700/50 bg-[#0d1117] ring-1 ring-white/5 transition-all duration-300">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#161b22] border-b border-gray-700/50 cursor-pointer hover:bg-[#1f242d] transition-colors" onClick={() => setIsCollapsed(!isCollapsed)}>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#FF5F56] shadow-sm hover:opacity-80 transition-opacity" title="Close" onClick={(e) => { e.stopPropagation(); setIsCollapsed(true); }}></div>
+            <div className={`w-3 h-3 rounded-full bg-[#FFBD2E] shadow-sm hover:opacity-80 transition-opacity ${isCollapsed ? 'animate-pulse' : ''}`} title="Minimize" onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}></div>
+            <div className="w-3 h-3 rounded-full bg-[#27C93F] shadow-sm hover:opacity-80 transition-opacity" title="Expand" onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }}></div>
+          </div>
+          <span className="text-xs text-blue-400 font-mono font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 select-none">
+            {language} {isCollapsed && '(Collapsed)'}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+            className="text-gray-400 hover:text-white transition-colors flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded hover:bg-white/5"
+            title="Copy Code"
+          >
+            {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+            <span className="hidden md:inline">{copied ? 'Copied!' : 'Copy'}</span>
+          </button>
+          <div className="text-gray-500">
+            {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+          </div>
+        </div>
+      </div>
+      {!isCollapsed && (
+        <SyntaxHighlighter
+          style={dracula}
+          language={language}
+          PreTag="div"
+          customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.9rem', lineHeight: '1.6', padding: '1.5rem', background: 'transparent' }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      )}
+    </div>
+  );
+};
+
 interface ChatPageProps {
   user: User;
   onLogout: () => void;
@@ -646,6 +699,17 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                       </span>
                     </div>
                     {
+                      !msg.isImage && (
+                        <button
+                          onClick={() => navigator.clipboard.writeText(msg.content)}
+                          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                          title="Copy Response"
+                        >
+                          <Copy size={16} />
+                        </button>
+                      )
+                    }
+                    {
                       msg.isImage ? (
                         <img src={msg.content} alt="Generated" className="rounded-[20px] w-full max-w-md border border-white/20 shadow-2xl transition-transform hover:scale-[1.01]" />
                       ) : (
@@ -656,34 +720,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                               code({ node, inline, className, children, ...props }: any) {
                                 const match = /language-(\w+)/.exec(className || '');
                                 return !inline && match ? (
-                                  <div className="rounded-xl overflow-hidden my-6 shadow-2xl border border-gray-700/50 bg-[#0d1117] ring-1 ring-white/5">
-                                    <div className="flex items-center justify-between px-4 py-3 bg-[#161b22] border-b border-gray-700/50">
-                                      <div className="flex gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-[#FF5F56] shadow-sm"></div>
-                                        <div className="w-3 h-3 rounded-full bg-[#FFBD2E] shadow-sm"></div>
-                                        <div className="w-3 h-3 rounded-full bg-[#27C93F] shadow-sm"></div>
-                                      </div>
-                                      <div className="flex items-center gap-3">
-                                        <span className="text-xs text-blue-400 font-mono font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{match[1]}</span>
-                                        <button
-                                          onClick={() => navigator.clipboard.writeText(String(children))}
-                                          className="text-gray-400 hover:text-white transition-colors"
-                                          title="Copy Code"
-                                        >
-                                          <Copy size={14} />
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <SyntaxHighlighter
-                                      style={dracula}
-                                      language={match[1]}
-                                      PreTag="div"
-                                      customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.9rem', lineHeight: '1.6', padding: '1.5rem', background: 'transparent' }}
-                                      {...props}
-                                    >
-                                      {String(children).replace(/\n$/, '')}
-                                    </SyntaxHighlighter>
-                                  </div>
+                                  <CodeBlock language={match[1]} {...props}>
+                                    {children}
+                                  </CodeBlock>
                                 ) : (
                                   <code className={`${className} bg-blue-100 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-md text-sm font-mono text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/20`} {...props}>
                                     {children}
