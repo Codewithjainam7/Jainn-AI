@@ -13,7 +13,7 @@ import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { dracula } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface ChatPageProps {
   user: User;
@@ -510,12 +510,12 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 flex flex-col relative w-full h-full">
+        {/* Main Chat Area */}
+        <main className="flex-1 flex flex-col h-full relative bg-gray-50/50 dark:bg-[#0D1117]/50 backdrop-blur-sm">
           {/* Header */}
-          <header className="h-16 px-6 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white/80 dark:bg-[#161B22]/80 backdrop-blur-md sticky top-0 z-30">
+          <header className="h-16 border-b border-gray-200/50 dark:border-white/5 flex items-center justify-between px-4 sticky top-0 z-10 bg-white/80 dark:bg-[#161B22]/80 backdrop-blur-md transition-all duration-300">
             <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300">
+              <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 hover:bg-gray-100/50 dark:hover:bg-white/5 rounded-full transition-colors">
                 <Menu size={20} />
               </button>
               <div className={`flex bg-gray-100 dark:bg-[#161B22] p-1 rounded-lg ${isFeatureLocked('multi-agent') ? 'locked-overlay' : ''}`}>
@@ -651,44 +651,48 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                               code({ node, inline, className, children, ...props }: any) {
                                 const match = /language-(\w+)/.exec(className || '');
                                 return !inline && match ? (
-                                  <div className="rounded-r-lg overflow-hidden my-6 shadow-xl border-l-4 border-blue-500 bg-[#1E1E1E]">
-                                    <div className="flex items-center justify-between px-4 py-2 bg-[#252526] border-b border-white/5">
-                                      <span className="text-xs text-blue-400 font-mono font-bold uppercase tracking-wider">{match[1]}</span>
-                                      <div className="flex gap-2 opacity-50">
-                                        <div className="w-3 h-3 rounded-full bg-red-500/20"></div>
-                                        <div className="w-3 h-3 rounded-full bg-yellow-500/20"></div>
-                                        <div className="w-3 h-3 rounded-full bg-green-500/20"></div>
+                                  <div className="rounded-xl overflow-hidden my-6 shadow-2xl border border-gray-700/50 bg-[#0d1117] ring-1 ring-white/5">
+                                    <div className="flex items-center justify-between px-4 py-3 bg-[#161b22] border-b border-gray-700/50">
+                                      <div className="flex gap-2">
+                                        <div className="w-3 h-3 rounded-full bg-[#FF5F56] shadow-sm"></div>
+                                        <div className="w-3 h-3 rounded-full bg-[#FFBD2E] shadow-sm"></div>
+                                        <div className="w-3 h-3 rounded-full bg-[#27C93F] shadow-sm"></div>
                                       </div>
+                                      <span className="text-xs text-blue-400 font-mono font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{match[1]}</span>
                                     </div>
                                     <SyntaxHighlighter
-                                      style={vscDarkPlus}
+                                      style={dracula}
                                       language={match[1]}
                                       PreTag="div"
-                                      customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.9rem', lineHeight: '1.5', padding: '1.5rem', background: 'transparent' }}
+                                      customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.9rem', lineHeight: '1.6', padding: '1.5rem', background: 'transparent' }}
                                       {...props}
                                     >
                                       {String(children).replace(/\n$/, '')}
                                     </SyntaxHighlighter>
                                   </div>
                                 ) : (
-                                  <code className={`${className} bg-blue-100 dark:bg-blue-500/20 px-1.5 py-0.5 rounded text-sm font-mono text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-500/30`} {...props}>
+                                  <code className={`${className} bg-blue-100 dark:bg-blue-500/10 px-1.5 py-0.5 rounded-md text-sm font-mono text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/20`} {...props}>
                                     {children}
                                   </code>
                                 );
                               },
-                              h1: ({ children }) => <h1 className="text-2xl font-black mb-6 mt-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 uppercase tracking-widest border-b border-blue-500/20 pb-4">{children}</h1>,
-                              h2: ({ children }) => <h2 className="text-xl font-bold mb-4 mt-8 flex items-center gap-3 text-blue-800 dark:text-blue-100 border-l-4 border-blue-500 pl-4 py-1 bg-gradient-to-r from-blue-50/50 to-transparent dark:from-blue-500/10 dark:to-transparent rounded-r-lg">{children}</h2>,
-                              h3: ({ children }) => <h3 className="text-lg font-bold mb-3 mt-6 text-blue-700 dark:text-blue-200 flex items-center gap-2"><span className="text-blue-500">#</span> {children}</h3>,
-                              p: ({ children }) => <p className="mb-4 last:mb-0 leading-7 text-gray-700 dark:text-gray-300">{children}</p>,
-                              ul: ({ children }) => <ul className="space-y-2 mb-4 ml-2">{children}</ul>,
-                              ol: ({ children }) => <ol className="list-decimal pl-5 mb-4 space-y-2 marker:text-blue-500 marker:font-bold">{children}</ol>,
+                              h1: ({ children }) => <h1 className="text-3xl font-black mb-6 mt-10 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 tracking-tight">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 mt-8 text-gray-800 dark:text-white flex items-center gap-3"><span className="w-1.5 h-6 rounded-full bg-blue-500 shrink-0"></span>{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-xl font-bold mb-3 mt-6 text-gray-700 dark:text-gray-200">{children}</h3>,
+                              p: ({ children }) => <p className="mb-4 last:mb-0 leading-7 text-gray-700 dark:text-gray-300/90 font-light tracking-wide">{children}</p>,
+                              ul: ({ children }) => <ul className="space-y-2 mb-6 ml-1">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal pl-5 mb-6 space-y-2 marker:text-blue-500 marker:font-bold text-gray-700 dark:text-gray-300">{children}</ol>,
                               li: ({ children }) => (
-                                <li className="flex gap-3 items-start">
-                                  <span className="mt-2 w-1.5 h-1.5 rounded-sm bg-blue-500 flex-shrink-0 relative top-0.5 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
-                                  <span>{children}</span>
+                                <li className="flex gap-3 items-start group">
+                                  <div className="mt-2 w-1.5 h-1.5 rounded-full bg-blue-400 group-hover:bg-blue-300 shrink-0 shadow-[0_0_8px_rgba(96,165,250,0.6)] transition-colors"></div>
+                                  <span className="group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{children}</span>
                                 </li>
                               ),
-                              blockquote: ({ children }) => <blockquote className="border-l-4 border-cyan-500 pl-6 italic my-6 text-gray-600 dark:text-gray-400 py-2 relative">{children}</blockquote>,
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-4 border-blue-500/50 pl-6 italic my-6 text-gray-600 dark:text-gray-400 py-3 relative bg-blue-50/50 dark:bg-blue-900/10 rounded-r-lg">
+                                  {children}
+                                </blockquote>
+                              ),
                               a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 underline decoration-cyan-500/30 hover:decoration-cyan-500 transition-all font-medium">{children}</a>,
                               table: ({ children }) => <div className="overflow-x-auto my-6 rounded-lg border border-blue-200 dark:border-white/10 shadow-lg"><table className="w-full text-left border-collapse">{children}</table></div>,
                               th: ({ children }) => <th className="bg-blue-50 dark:bg-blue-900/20 p-4 border-b border-blue-200 dark:border-white/10 font-bold text-xs uppercase tracking-wider text-blue-700 dark:text-blue-300">{children}</th>,
@@ -704,7 +708,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                 )}
               </div>
             ))}
-            {isTyping && (
+            {isTyping && messages.length > 0 && String(messages[messages.length - 1].content).length === 0 && (
               <div className="flex justify-start animate-in fade-in duration-300">
                 <div className="max-w-[80%] rounded-[20px] p-6 bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/5 rounded-bl-none shadow-sm space-y-3">
                   <div className="flex items-center gap-2 mb-4">
@@ -739,7 +743,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder={mode === ChatMode.MULTI ? "Ask multi-agent network..." : `Ask ${currentModel}... (type /image for visuals)`}
-                className="w-full pl-14 pr-14 py-4 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 rounded-[24px] shadow-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all dark:text-white"
+                className="w-full pl-14 pr-14 py-4 bg-white/90 dark:bg-[#161B22]/90 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-[24px] shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all dark:text-white placeholder:text-gray-400"
               />
               <button
                 onClick={handleSend}
