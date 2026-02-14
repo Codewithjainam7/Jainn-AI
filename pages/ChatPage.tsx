@@ -87,7 +87,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [showModelSelector, setShowModelSelector] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState('profile');
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -171,6 +171,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
       setMessages([]);
       setMode(newMode);
     }
+  };
+
+  const handleModelSelect = (model: ModelType) => {
+    setCurrentModel(model);
+    setShowModelSelector(false);
   };
 
   // Profile save function
@@ -634,7 +639,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           </header>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 scrollbar-hide">
             {messages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
                 <Logo size={64} className="mb-6 opacity-20 grayscale" />
@@ -650,10 +655,20 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
                 {msg.role === 'user' ? (
-                  <div className="max-w-[85%] md:max-w-[70%] rounded-[20px] p-4 bg-blue-600 text-white rounded-br-none shadow-md">
-                    <div className="prose dark:prose-invert text-white text-sm leading-relaxed whitespace-pre-wrap">
+                  <div className="max-w-[90%] md:max-w-[70%] rounded-[24px] p-4 md:p-5 bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-br-sm shadow-lg">
+                    <div className="prose dark:prose-invert text-white text-sm md:text-base leading-relaxed whitespace-pre-wrap tracking-wide">
                       {msg.content}
                     </div>
+                    {msg.files && msg.files.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-white/20">
+                        {msg.files.map((file, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-full text-xs backdrop-blur-md">
+                            <span className="opacity-70">📎</span>
+                            <span className="truncate max-w-[150px]">{file.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : msg.multiResponses ? (
                   <div className="w-full max-w-5xl">
@@ -707,26 +722,26 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                   </div>
                 ) : (
 
-                  <div className="max-w-full md:max-w-[85%] rounded-[24px] p-4 md:p-8 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 shadow-lg rounded-bl-sm overflow-hidden group hover:shadow-md transition-all duration-300">
-                    <div className="flex items-center gap-3 mb-4 md:mb-6 opacity-80 group-hover:opacity-100 transition-opacity select-none border-b border-gray-100 dark:border-white/5 pb-3">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
-                        AI
+                  <div className="relative max-w-full md:max-w-[85%] rounded-[24px] p-4 md:p-8 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 shadow-lg rounded-bl-sm overflow-hidden group hover:shadow-md transition-all duration-300">
+                    <div className="flex items-center justify-between mb-4 md:mb-6 border-b border-gray-100 dark:border-white/5 pb-3">
+                      <div className="flex items-center gap-3 opacity-80 group-hover:opacity-100 transition-opacity select-none">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
+                          AI
+                        </div>
+                        <span className="text-xs md:text-sm font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 font-sans">
+                          {msg.model}
+                        </span>
                       </div>
-                      <span className="text-xs md:text-sm font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 font-sans">
-                        {msg.model}
-                      </span>
-                    </div>
-                    {
-                      !msg.isImage && (
+                      {!msg.isImage && (
                         <button
                           onClick={() => navigator.clipboard.writeText(msg.content)}
-                          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-all opacity-0 group-hover:opacity-100"
+                          className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-full transition-all opacity-0 group-hover:opacity-100"
                           title="Copy Response"
                         >
                           <Copy size={16} />
                         </button>
-                      )
-                    }
+                      )}
+                    </div>
                     {
                       msg.isImage ? (
                         <img src={msg.content} alt="Generated" className="rounded-[20px] w-full max-w-md border border-white/20 shadow-2xl transition-transform hover:scale-[1.01]" />
