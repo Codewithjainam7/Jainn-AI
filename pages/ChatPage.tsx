@@ -636,18 +636,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                   </div>
                 ) : (
 
-                  <div className="max-w-[90%] md:max-w-[85%] rounded-[24px] p-6 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 shadow-lg rounded-bl-sm overflow-hidden group hover:shadow-md transition-all duration-300">
-                    <div className="flex items-center gap-3 mb-6 opacity-80 group-hover:opacity-100 transition-opacity select-none border-b border-gray-100 dark:border-white/5 pb-3">
+                  <div className="max-w-full md:max-w-[85%] rounded-[24px] p-4 md:p-8 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 shadow-lg rounded-bl-sm overflow-hidden group hover:shadow-md transition-all duration-300">
+                    <div className="flex items-center gap-3 mb-4 md:mb-6 opacity-80 group-hover:opacity-100 transition-opacity select-none border-b border-gray-100 dark:border-white/5 pb-3">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
                         AI
                       </div>
-                      <span className="text-sm font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 font-sans">
+                      <span className="text-xs md:text-sm font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 font-sans">
                         {msg.model}
                       </span>
                     </div>
                     {
                       msg.isImage ? (
-                        <img src={msg.content} alt="Generated" className="rounded-[24px] w-full max-w-md border border-white/20 shadow-2xl transition-transform hover:scale-[1.01]" />
+                        <img src={msg.content} alt="Generated" className="rounded-[20px] w-full max-w-md border border-white/20 shadow-2xl transition-transform hover:scale-[1.01]" />
                       ) : (
                         <div className="markdown-content text-sm leading-relaxed">
                           <ReactMarkdown
@@ -663,7 +663,16 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                                         <div className="w-3 h-3 rounded-full bg-[#FFBD2E] shadow-sm"></div>
                                         <div className="w-3 h-3 rounded-full bg-[#27C93F] shadow-sm"></div>
                                       </div>
-                                      <span className="text-xs text-blue-400 font-mono font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{match[1]}</span>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xs text-blue-400 font-mono font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">{match[1]}</span>
+                                        <button
+                                          onClick={() => navigator.clipboard.writeText(String(children))}
+                                          className="text-gray-400 hover:text-white transition-colors"
+                                          title="Copy Code"
+                                        >
+                                          <Copy size={14} />
+                                        </button>
+                                      </div>
                                     </div>
                                     <SyntaxHighlighter
                                       style={dracula}
@@ -681,20 +690,21 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                                   </code>
                                 );
                               },
-                              h1: ({ children }) => <h1 className="text-3xl font-black mb-6 mt-10 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 tracking-tight">{children}</h1>,
-                              h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 mt-8 text-gray-800 dark:text-white flex items-center gap-3"><span className="w-1.5 h-6 rounded-full bg-blue-500 shrink-0"></span>{children}</h2>,
-                              h3: ({ children }) => <h3 className="text-xl font-bold mb-3 mt-6 text-gray-700 dark:text-gray-200">{children}</h3>,
-                              p: ({ children }) => <p className="mb-4 last:mb-0 leading-7 text-gray-700 dark:text-gray-300/90 font-light tracking-wide">{children}</p>,
+                              h1: ({ children }) => <h1 className="text-2xl md:text-3xl font-black mb-4 md:mb-6 mt-8 md:mt-10 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 tracking-tight">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 mt-6 md:mt-8 text-gray-800 dark:text-white flex items-center gap-3"><span className="w-1.5 h-5 md:h-6 rounded-full bg-blue-500 shrink-0"></span>{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3 mt-4 md:mt-6 text-gray-700 dark:text-gray-200">{children}</h3>,
+                              p: ({ children }) => <p className="mb-4 last:mb-0 leading-relaxed text-gray-700 dark:text-gray-300/90 font-light tracking-wide text-sm md:text-base">{children}</p>,
                               ul: ({ children }) => <ul className="space-y-2 mb-6 ml-1">{children}</ul>,
                               ol: ({ children }) => <ol className="list-decimal pl-5 mb-6 space-y-2 marker:text-blue-500 marker:font-bold text-gray-700 dark:text-gray-300">{children}</ol>,
                               li: ({ children }) => (
-                                <li className="flex gap-3 items-start group">
+                                <li className="flex gap-3 items-start group text-sm md:text-base">
                                   <div className="mt-2 w-1.5 h-1.5 rounded-full bg-blue-400 group-hover:bg-blue-300 shrink-0 shadow-[0_0_8px_rgba(96,165,250,0.6)] transition-colors"></div>
                                   <span className="group-hover:text-gray-900 dark:group-hover:text-white transition-colors">{children}</span>
                                 </li>
                               ),
                               blockquote: ({ children }) => (
-                                <blockquote className="border-l-4 border-blue-500/50 pl-6 italic my-6 text-gray-600 dark:text-gray-400 py-3 relative bg-blue-50/50 dark:bg-blue-900/10 rounded-r-lg">
+                                <blockquote className="border-l-4 border-blue-500/50 pl-6 italic my-6 text-gray-600 dark:text-gray-400 py-3 relative bg-blue-50/50 dark:bg-blue-900/10 rounded-r-lg shadow-sm">
+                                  <div className="absolute top-2 left-1 opacity-20 text-3xl text-blue-500">“</div>
                                   {children}
                                 </blockquote>
                               ),
@@ -737,9 +747,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           </div >
 
           {/* Input Area */}
-          < div className="p-6 bg-transparent" >
-            <div className="max-w-4xl mx-auto relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex gap-2">
+          <div className="p-3 md:p-6 bg-transparent">
+            <div className="max-w-4xl mx-auto relative cursor-text">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex gap-2 z-10">
                 <button
                   className={`p-2 transition-colors rounded-full ${mode === ChatMode.SINGLE && currentModel === ModelType.GEMINI ? 'text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-white/5' : 'text-gray-300 dark:text-gray-700 cursor-not-allowed'}`}
                   title={mode === ChatMode.SINGLE && currentModel === ModelType.GEMINI ? "Upload Image" : "Image generation available in Single Gemini mode"}
@@ -752,13 +762,13 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={mode === ChatMode.MULTI ? "Ask multi-agent network..." : `Ask ${currentModel}... (type /image for visuals)`}
-                className="w-full pl-14 pr-14 py-4 bg-white/90 dark:bg-[#161B22]/90 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-[24px] shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all dark:text-white placeholder:text-gray-400"
+                placeholder={mode === ChatMode.MULTI ? "Ask..." : `Ask ${currentModel}...`}
+                className="w-full pl-14 pr-14 py-4 bg-white/90 dark:bg-[#161B22]/90 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-[28px] shadow-lg focus:ring-2 focus:ring-blue-500/50 outline-none transition-all dark:text-white placeholder:text-gray-400 text-sm md:text-base"
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isTyping}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-md"
               >
                 <Send size={18} />
               </button>
