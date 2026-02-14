@@ -9,7 +9,7 @@ import { saveChatSession, getChatSessions, generateChatTitle, deleteChatSession,
 import { MessageSquare, Edit2, Trash2, Loader } from 'lucide-react';
 import { generateResponse, generateResponseStream, generateRefereeAnalysis, generateImage } from '../services/gemini';
 import { supabase, upsertUserProfile } from '../lib/supabase';
-import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Menu, X, CheckCircle, Crown, Home, ChevronDown, Lock, Palette, CreditCard, ShieldCheck, Bell, Globe, Code, Copy, Check } from 'lucide-react';
+import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Menu, X, CheckCircle, Crown, Home, ChevronDown, Lock, Palette, CreditCard, ShieldCheck, Bell, Globe, Code, Copy, Check, ChevronUp } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -27,15 +27,15 @@ const CodeBlock = ({ language, children, ...props }: any) => {
   };
 
   return (
-    <div className="rounded-xl overflow-hidden my-6 shadow-2xl border border-gray-700/50 bg-[#0d1117] ring-1 ring-white/5 transition-all duration-300">
-      <div className="flex items-center justify-between px-4 py-3 bg-[#161b22] border-b border-gray-700/50 cursor-pointer hover:bg-[#1f242d] transition-colors" onClick={() => setIsCollapsed(!isCollapsed)}>
+    <div className="rounded-xl overflow-hidden my-6 shadow-2xl border border-gray-700 bg-[#1e1e1e] ring-1 ring-white/5 transition-all duration-300">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#252526] border-b border-black/50 cursor-pointer hover:bg-[#2d2d2d] transition-colors" onClick={() => setIsCollapsed(!isCollapsed)}>
         <div className="flex items-center gap-3">
           <div className="flex gap-2">
-            <div className="w-3 h-3 rounded-full bg-[#FF5F56] shadow-sm hover:opacity-80 transition-opacity" title="Close" onClick={(e) => { e.stopPropagation(); setIsCollapsed(true); }}></div>
-            <div className={`w-3 h-3 rounded-full bg-[#FFBD2E] shadow-sm hover:opacity-80 transition-opacity ${isCollapsed ? 'animate-pulse' : ''}`} title="Minimize" onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}></div>
-            <div className="w-3 h-3 rounded-full bg-[#27C93F] shadow-sm hover:opacity-80 transition-opacity" title="Expand" onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }}></div>
+            <div className="w-3 h-3 rounded-full bg-[#ff5f56] shadow-sm hover:opacity-80 transition-opacity border border-red-600/20" title="Close" onClick={(e) => { e.stopPropagation(); setIsCollapsed(true); }}></div>
+            <div className={`w-3 h-3 rounded-full bg-[#ffbd2e] shadow-sm hover:opacity-80 transition-opacity border border-yellow-600/20 ${isCollapsed ? 'animate-pulse' : ''}`} title="Minimize" onClick={(e) => { e.stopPropagation(); setIsCollapsed(!isCollapsed); }}></div>
+            <div className="w-3 h-3 rounded-full bg-[#27c93f] shadow-sm hover:opacity-80 transition-opacity border border-green-600/20" title="Expand" onClick={(e) => { e.stopPropagation(); setIsCollapsed(false); }}></div>
           </div>
-          <span className="text-xs text-blue-400 font-mono font-bold uppercase tracking-wider bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 select-none">
+          <span className="text-xs text-gray-400 font-mono font-bold uppercase tracking-wider ml-1 select-none">
             {language} {isCollapsed && '(Collapsed)'}
           </span>
         </div>
@@ -591,22 +591,40 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
               {mode === ChatMode.SINGLE && (
                 <div className="relative">
                   <button
-                    onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                    className="flex items-center gap-2 text-sm font-medium bg-gray-100 dark:bg-[#161B22] px-3 py-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-[#1F2937] transition-colors dark:text-white"
+                    onClick={() => setShowModelSelector(!showModelSelector)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-[#1C2128] rounded-lg hover:bg-gray-200 dark:hover:bg-[#2D333B] transition-colors min-w-[140px] justify-between border border-gray-200 dark:border-white/10"
                   >
-                    {currentModel === ModelType.GEMINI && <span className="text-blue-500">Gemini 2.5</span>}
-                    {currentModel === ModelType.LLAMA && <span className="text-purple-500">LLaMA 3.1</span>}
-                    {currentModel === ModelType.MISTRAL && <span className="text-yellow-500">Mistral</span>}
-                    <ChevronDown size={14} />
+                    <div className="flex flex-col items-start">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${currentModel === ModelType.GEMINI ? 'text-blue-500' : currentModel === ModelType.LLAMA ? 'text-purple-500' : 'text-orange-500'}`}>
+                        {currentModel === ModelType.GEMINI ? 'Gemini 2.5' : currentModel === ModelType.LLAMA ? 'LLaMA' : 'Mistral'}
+                      </span>
+                      <span className="text-xs font-semibold">{currentModel === ModelType.GEMINI ? 'Flash' : currentModel === ModelType.LLAMA ? '3.1' : 'Large'}</span>
+                    </div>
+                    <ChevronDown size={14} className={`transition-transform duration-300 ${showModelSelector ? 'rotate-180' : ''}`} />
                   </button>
 
-                  {modelDropdownOpen && (
+                  {/* Dropdown Menu - Fixed Position for Mobile */}
+                  {showModelSelector && (
                     <>
-                      <div className="fixed inset-0 z-10" onClick={() => setModelDropdownOpen(false)}></div>
-                      <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-20">
-                        <button onClick={() => { setCurrentModel(ModelType.GEMINI); setModelDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 text-sm dark:text-white">Gemini 2.5 Flash</button>
-                        <button onClick={() => { setCurrentModel(ModelType.LLAMA); setModelDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 text-sm dark:text-white">LLaMA 3.1</button>
-                        <button onClick={() => { setCurrentModel(ModelType.MISTRAL); setModelDropdownOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 text-sm dark:text-white">Mistral Large</button>
+                      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden" onClick={() => setShowModelSelector(false)} />
+                      <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-[#1C2128] rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                        <div className="p-2 space-y-1">
+                          {[
+                            { id: ModelType.GEMINI, name: 'Gemini 2.5 Flash', icon: '⚡', color: 'text-blue-500' },
+                            { id: ModelType.LLAMA, name: 'LLaMA 3.1', icon: '🦙', color: 'text-purple-500' },
+                            { id: ModelType.MISTRAL, name: 'Mistral Large', icon: '🌪️', color: 'text-orange-500' }
+                          ].map((model) => (
+                            <button
+                              key={model.id}
+                              onClick={() => handleModelSelect(model.id)}
+                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${currentModel === model.id ? 'bg-gray-100 dark:bg-[#2D333B]' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                            >
+                              <span className="text-lg">{model.icon}</span>
+                              <span className={`${currentModel === model.id ? model.color : 'text-gray-700 dark:text-gray-300'}`}>{model.name}</span>
+                              {currentModel === model.id && <Check size={14} className="ml-auto text-gray-500" />}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </>
                   )}
