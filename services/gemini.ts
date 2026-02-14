@@ -69,7 +69,7 @@ async function callOpenRouter(
  * Main function to generate responses from different models
  */
 export const generateResponse = async (
-  prompt: string, 
+  prompt: string,
   modelType: ModelType = ModelType.GEMINI,
   files?: any[], // ADD THIS PARAMETER
   systemInstruction?: string
@@ -82,7 +82,7 @@ export const generateResponse = async (
 
       // Build contents array with files
       const contents: any[] = [{ text: prompt }];
-      
+
       if (files && files.length > 0) {
         files.forEach(file => {
           if (file.base64) {
@@ -103,23 +103,23 @@ export const generateResponse = async (
           systemInstruction: systemInstruction || "You are Gemini, a helpful AI assistant. When files are attached, analyze them thoroughly.",
         }
       });
-      
+
       return response.text || "No response generated.";
-      
+
     } else if (modelType === ModelType.LLAMA) {
       const instruction = systemInstruction || "You are LLaMA 3.1, a helpful and efficient AI assistant created by Meta. Answer with clarity and precision.";
       return await callOpenRouter(prompt, ModelType.LLAMA, instruction);
-      
+
     } else if (modelType === ModelType.MISTRAL) {
       const instruction = systemInstruction || "You are Mistral Large, a concise and precise AI assistant. Answer with accuracy and efficiency.";
       return await callOpenRouter(prompt, ModelType.MISTRAL, instruction);
-      
+
     } else {
       throw new Error(`Unknown model type: ${modelType}`);
     }
   } catch (error: any) {
     console.error("Error generating content:", error);
-    
+
     if (error.message?.includes('API Key not found')) {
       return `⚠️ ${error.message}`;
     }
@@ -173,14 +173,14 @@ export const generateImage = async (prompt: string): Promise<string | null> => {
   if (!geminiApiKey || !ai) {
     throw new Error("Gemini API Key not found. Image generation requires VITE_GEMINI_API_KEY.");
   }
-  
+
   try {
     console.log('🎨 Generating image with Flash Image 2.0...');
-    
+
     // UPDATED: Using the latest image generation model
     // Try gemini-2.5-flash-image first, fallback to imagen-3.0 if needed
     let imageUrl: string | null = null;
-    
+
     try {
       const response = await ai.models.generateImages({
         model: 'gemini-2.5-flash-image', // UPDATED MODEL
@@ -198,7 +198,7 @@ export const generateImage = async (prompt: string): Promise<string | null> => {
       }
     } catch (flashError) {
       console.warn('Flash Image 2.0 failed, trying Imagen 3.0 fallback...', flashError);
-      
+
       // Fallback to Imagen 3.0
       const response = await ai.models.generateImages({
         model: 'imagen-3.0-generate-001',
@@ -215,15 +215,136 @@ export const generateImage = async (prompt: string): Promise<string | null> => {
         imageUrl = `data:image/jpeg;base64,${imageBytes}`;
       }
     }
-    
+
     if (imageUrl) {
       console.log('✅ Image generated successfully');
       return imageUrl;
     }
-    
+
     return null;
   } catch (error: any) {
     console.error("Image generation error:", error);
     throw new Error(error.message || "Failed to generate image");
   }
 };
+
+/**
+ * Generate a streaming response
+ */
+export async function* generateResponseStream(
+  prompt: string,
+  modelType: ModelType = ModelType.GEMINI,
+  files?: any[],
+  systemInstruction?: string
+): AsyncGenerator<string, void, unknown> {
+  // ---------------------------------------------------------
+  // 1. GEMINI STREAMING
+  // ---------------------------------------------------------
+  if (modelType === ModelType.GEMINI) {
+    if (!geminiApiKey || !ai) {
+      throw new Error("Gemini API Key not found. Please add VITE_GEMINI_API_KEY.");
+    }
+
+    const contents: any[] = [{ text: prompt }];
+    if (files && files.length > 0) {
+      files.forEach(file => {
+        if (file.base64) {
+          contents.push({
+            inlineData: {
+              mimeType: file.type,
+              data: file.base64
+            }
+          });
+        }
+      });
+    }
+
+    try {
+      const streamingResp = await ai.models.generateContentStream({
+        model: 'gemini-2.5-flash',
+        contents: contents,
+        config: {
+          systemInstruction: systemInstruction || "You are Gemini, a helpful AI assistant.",
+        }
+      });
+
+      for await (const item of streamingResp.stream) {
+        yield item.text();
+      }
+    } catch (error: any) {
+      console.error("Gemini stream error:", error);
+      throw error;
+    }
+  }
+  // ---------------------------------------------------------
+  // 2. OPENROUTER STREAMING (LLaMA / Mistral)
+  // ---------------------------------------------------------
+  else {
+    if (!openRouterApiKey) {
+      throw new Error("OpenRouter API Key not found.");
+    }
+
+    const modelName = OPENROUTER_MODELS[modelType];
+    const finalInstruction = systemInstruction || (
+      modelType === ModelType.LLAMA
+        ? "You are LLaMA 3.1, a helpful AI assistant."
+        : "You are Mistral Large, a helpful AI assistant."
+    );
+
+    try {
+      const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openRouterApiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'Jainn AI 3.0',
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [
+            { role: 'system', content: finalInstruction },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7,
+          stream: true // ENABLE STREAMING
+        }),
+      });
+
+      if (!response.ok) throw new Error(`OpenRouter error: ${response.status}`);
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+          const data = trimmed.slice(6);
+          if (data === '[DONE]') return;
+
+          try {
+            const json = JSON.parse(data);
+            const content = json.choices?.[0]?.delta?.content;
+            if (content) yield content;
+          } catch (e) {
+            // Ignore parse errors for partial chunks
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error(`OpenRouter stream error (${modelType}):`, error);
+      throw error;
+    }
+  }
+}

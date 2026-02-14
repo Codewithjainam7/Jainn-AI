@@ -5,23 +5,28 @@ import { ChatHistory } from '../components/ChatHistory';
 import { CustomModal } from '../components/CustomModal';
 import { ProfileSettings } from '../components/ProfileSettings';
 import { User, ChatMode, Message, ModelType, UserTier, MultiResponse, ChatSession, UploadedFile } from '../types';
-import { saveChatSession, getChatSessions, generateChatTitle } from '../lib/chatHistory';
+import { saveChatSession, getChatSessions, generateChatTitle, deleteChatSession, renameChatSession } from '../lib/chatHistory';
 import { MessageSquare, Edit2, Trash2, Loader } from 'lucide-react';
-import { generateResponse, generateRefereeAnalysis, generateImage } from '../services/gemini';
+import { generateResponse, generateResponseStream, generateRefereeAnalysis, generateImage } from '../services/gemini';
 import { supabase, upsertUserProfile } from '../lib/supabase';
-import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Menu, X, CheckCircle, Crown, Home, ChevronDown, Lock, Palette, CreditCard, ShieldCheck, Bell, Globe } from 'lucide-react';
+import { Settings, LogOut, Plus, Image as ImageIcon, Send, User as UserIcon, Bot, Menu, X, CheckCircle, Crown, Home, ChevronDown, Lock, Palette, CreditCard, ShieldCheck, Bell, Globe, Code, Copy, Check } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
 interface ChatPageProps {
   user: User;
   onLogout: () => void;
   onHome: () => void;
   onUpdateUser: (user: User) => void;
-  onUpgrade?: (plan: 'pro' | 'ultra') => void;  // ADD THIS LINE
+  onUpgrade?: (plan: 'pro' | 'ultra') => void;
 }
 
 export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUpdateUser, onUpgrade }) => {
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>(ChatMode.SINGLE);
-  const [currentSessionId, setCurrentSessionId] = useState<string>(`session_${Date.now()}`);
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() => crypto.randomUUID());
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [currentModel, setCurrentModel] = useState<ModelType>(ModelType.GEMINI);
@@ -37,6 +42,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
   const [dataSharing, setDataSharing] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [regeneratingMessageId, setRegeneratingMessageId] = useState<string | null>(null);
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({
@@ -68,6 +74,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
     };
     loadUserProfile();
   }, [user.id]);
+
   useEffect(() => {
     loadChatSessions();
   }, [user.id]);
@@ -147,6 +154,33 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
     }
   };
 
+  const handleDeleteChat = async (sessionId: string) => {
+    try {
+      await deleteChatSession(sessionId, user.id);
+
+      // If the deleted session was active, clear the view and start new
+      if (sessionId === currentSessionId) {
+        setMessages([]);
+        setCurrentSessionId(crypto.randomUUID());
+        setMode(ChatMode.SINGLE);
+      }
+
+      await loadChatSessions();
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+      showModal('Delete Failed', 'Failed to delete chat.', 'error');
+    }
+  };
+
+  const handleRenameChat = async (sessionId: string, newTitle: string) => {
+    try {
+      await renameChatSession(sessionId, user.id, newTitle);
+      await loadChatSessions();
+    } catch (error) {
+      console.error('Failed to rename chat:', error);
+    }
+  };
+
   // Message handling function
   const handleSend = async () => {
     if ((!input.trim() && uploadedFiles.length === 0) || isTyping) return;
@@ -194,7 +228,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           const updatedMessages = [...newMessages, aiMsg];
           setMessages(updatedMessages);
 
-          // Save after image generation
           const title = newMessages.length === 1 ? generateChatTitle([userMsg]) :
             chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
           await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
@@ -203,25 +236,55 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           throw new Error("Failed to generate image");
         }
       } else if (mode === ChatMode.SINGLE) {
+        // STREAMING IMPLEMENTATION
         let enhancedPrompt = userMsg.content;
         if (uploadedFiles.length > 0) {
           enhancedPrompt += `\n\n[User has attached ${uploadedFiles.length} file(s): ${uploadedFiles.map(f => f.name).join(', ')}]`;
         }
 
-        const response = await generateResponse(enhancedPrompt, currentModel, uploadedFiles);
+        // Create placeholder message
+        const placeholderId = (Date.now() + 1).toString();
         aiMsg = {
-          id: (Date.now() + 1).toString(),
+          id: placeholderId,
           role: 'model',
           model: currentModel.toUpperCase(),
-          content: response,
+          content: '', // Start empty
           timestamp: Date.now()
         };
-        const updatedMessages = [...newMessages, aiMsg];
+
+        // Update state with placeholder
+        let currentMessages = [...newMessages, aiMsg];
+        setMessages(currentMessages);
+
+        let fullContent = '';
+
+        try {
+          // Iterate over stream
+          const stream = generateResponseStream(enhancedPrompt, currentModel, uploadedFiles);
+
+          for await (const chunk of stream) {
+            fullContent += chunk;
+
+            // Update the specific message in state (use functional update to avoid stale closure)
+            setMessages(prev => prev.map(m =>
+              m.id === placeholderId
+                ? { ...m, content: fullContent }
+                : m
+            ));
+          }
+        } catch (streamError) {
+          console.error("Streaming failed, falling back to non-stream", streamError);
+          // Fallback if stream fails
+          fullContent = await generateResponse(enhancedPrompt, currentModel, uploadedFiles);
+        }
+
+        // Final update and save
+        aiMsg.content = fullContent;
+        const updatedMessages = [...newMessages, { ...aiMsg, content: fullContent }];
         setMessages(updatedMessages);
 
-        // Save after single model response
         const title = newMessages.length === 1 ? generateChatTitle([userMsg]) :
-          chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
+          chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(updatedMessages);
         await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
         await loadChatSessions();
 
@@ -252,13 +315,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
         const updatedMessages = [...newMessages, multiMsg];
         setMessages(updatedMessages);
 
-        // Save after multi-agent response
         const title = newMessages.length === 1 ? generateChatTitle([userMsg]) :
           chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
         await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
         await loadChatSessions();
 
-        // Generate referee analysis in background
         generateRefereeAnalysis(userMsg.content, responses).then(analysis => {
           console.log("Referee Analysis:", analysis);
         });
@@ -272,81 +333,50 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
         content: "I encountered an error. Please check your API configuration or try again.",
         timestamp: Date.now()
       };
-      const updatedMessages = [...newMessages, errorMsg];
-      setMessages(updatedMessages);
-
-      // Even save error messages
-      try {
-        const title = chatSessions.find(s => s.id === currentSessionId)?.title || generateChatTitle(newMessages);
-        await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
-        await loadChatSessions();
-      } catch (saveError) {
-        console.error('Failed to save error message:', saveError);
-      }
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const handleNewChat = () => {
-    setMessages([]);
-    setCurrentSessionId(`session_${Date.now()}`);
-    setSidebarOpen(false);
-  };
-
-  const handleSelectSession = async (session: ChatSession) => {
-    setMessages(session.messages);
+  const handleSelectSession = (session: ChatSession) => {
     setCurrentSessionId(session.id);
-    setMode(session.mode);
-    setSidebarOpen(false);
-  };
+    setMessages(session.messages as Message[]);
+    setMode(session.mode as ChatMode);
 
-  const handleRegenerate = async (messageId: string) => {
-    const messageIndex = messages.findIndex(m => m.id === messageId);
-    if (messageIndex === -1 || messageIndex === 0) return;
-
-    const previousUserMessage = messages[messageIndex - 1];
-    if (previousUserMessage.role !== 'user') return;
-
-    setRegeneratingMessageId(messageId);
-
-    try {
-      if (mode === ChatMode.SINGLE) {
-        const response = await generateResponse(previousUserMessage.content, currentModel);
-        const newMsg: Message = {
-          ...messages[messageIndex],
-          content: response,
-          timestamp: Date.now()
-        };
-
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[messageIndex] = newMsg;
-          return updated;
-        });
-      }
-    } catch (error) {
-      console.error('Regeneration error:', error);
-      showModal('Regeneration Failed', 'Failed to regenerate response. Please try again.', 'error');
-    } finally {
-      setRegeneratingMessageId(null);
+    // Auto-close sidebar on mobile
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
     }
   };
 
-  const handleSelectWinner = (messageId: string, modelName: string) => {
-    setMessages(prev => prev.map(msg => {
+  const handleSelectWinner = async (messageId: string, winnerModel: string) => {
+    const updatedMessages = messages.map(msg => {
       if (msg.id === messageId && msg.multiResponses) {
         return {
           ...msg,
-          selectedWinner: modelName,
+          selectedWinner: winnerModel,
           multiResponses: msg.multiResponses.map(r => ({
             ...r,
-            isWinner: r.model === modelName
+            isWinner: r.model === winnerModel
           }))
         };
       }
       return msg;
-    }));
+    });
+
+    setMessages(updatedMessages);
+    const title = chatSessions.find(s => s.id === currentSessionId)?.title || "Chat";
+    await saveChatSession(user.id, currentSessionId, title, mode, updatedMessages);
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setCurrentSessionId(crypto.randomUUID());
+    setMode(ChatMode.SINGLE);
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
   };
 
   // Get user initials for avatar
@@ -364,7 +394,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
     return user.email.substring(0, 2).toUpperCase();
   };
 
-  // Get user avatar URL (for Google sign-in users)
+  // Get user avatar URL
   const getUserAvatar = () => {
     return userProfile?.avatar || null;
   };
@@ -379,12 +409,6 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
     }
     return false;
   };
-
-  // ... (rest of your ChatPage code above this)
-
-  // JSX Render
-  // COMPLETE RETURN FUNCTION FOR ChatPage.tsx
-  // Replace the entire return statement in your ChatPage component with this
 
   return (
     <>
@@ -414,7 +438,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
           </div>
 
           <div className="p-4 space-y-2">
-            <Button onClick={() => setMessages([])} variant="secondary" className="w-full justify-start text-gray-700 dark:text-gray-200 border-gray-200 dark:border-white/10 hover:border-blue-500">
+            <Button onClick={handleNewChat} variant="secondary" className="w-full justify-start text-gray-700 dark:text-gray-200 border-gray-200 dark:border-white/10 hover:border-blue-500">
               <Plus size={18} /> New Chat
             </Button>
             <Button onClick={onHome} variant="ghost" className="w-full justify-start px-4 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">
@@ -437,9 +461,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
               </p>
             ) : (
               <ChatHistory
-                userId={user.id}
-                onSelectChat={handleSelectSession}
+                sessions={chatSessions}
                 currentSessionId={currentSessionId}
+                onSelectChat={handleSelectSession}
+                onDeleteChat={handleDeleteChat}
+                onRenameChat={handleRenameChat}
               />
             )}
           </div>
@@ -448,56 +474,50 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
             <div className="flex items-center gap-3 mb-4 px-2">
               <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg overflow-hidden">
                 {getUserAvatar() ? (
-                  <img src={getUserAvatar()!} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={getUserAvatar()} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   getUserInitials()
                 )}
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#161B22] rounded-full"></div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user.displayName || userProfile?.name || user.email}</p>
-                <p className="text-xs text-gray-500 uppercase flex items-center gap-1">
-                  {user.tier === 'pro' && <Crown size={10} className="text-yellow-500" />}
-                  {user.tier === 'ultra' && <Crown size={10} className="text-purple-500" />}
-                  {user.tier}
+                <p className="text-sm font-bold truncate dark:text-white">
+                  {user.displayName || userProfile?.name || 'User'}
                 </p>
-              </div>
-            </div>
-            {(user.tier === 'free' || user.tier === 'guest') && onUpgrade && (
-              <div className="mx-4 mb-4 p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-2xl">
-                <div className="flex items-center gap-2 mb-2">
-                  <Crown size={16} className="text-yellow-500" />
-                  <h4 className="text-sm font-bold dark:text-white">Upgrade to Pro</h4>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${user.tier === UserTier.FREE ? 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' :
+                    user.tier === UserTier.PRO ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                      user.tier === UserTier.ULTRA ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                        'bg-gray-100 text-gray-600'
+                    }`}>
+                    {user.tier}
+                  </span>
+                  {(user.tier === UserTier.FREE || user.tier === UserTier.GUEST) && (
+                    <span className="text-[10px] text-gray-400">
+                      {user.tokensUsed}/{user.tier === UserTier.GUEST ? '10' : 'Limit'}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-                  Unlock multi-agent mode and 10x more tokens
-                </p>
-                <button
-                  onClick={() => {
-                    onUpgrade('pro');
-                    setSidebarOpen(false);
-                  }}
-                  className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
-                >
-                  Upgrade Now
-                </button>
               </div>
-            )}
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setSettingsOpen(true)} className="flex-1 justify-start px-2"><Settings size={16} /> Settings</Button>
-              <Button size="sm" variant="ghost" onClick={() => setLogoutConfirmOpen(true)} className="flex-1 justify-start px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"><LogOut size={16} /> Logout</Button>
             </div>
+
+            <button onClick={() => setSettingsOpen(true)} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors">
+              <Settings size={18} /> Settings
+            </button>
+            <button onClick={() => setLogoutConfirmOpen(true)} className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 rounded-xl transition-colors">
+              <LogOut size={18} /> Logout
+            </button>
           </div>
         </aside>
 
-        {/* Main Chat Area */}
-        <main className="flex-1 flex flex-col relative w-full">
+        {/* Main Content */}
+        <main className="flex-1 flex flex-col relative w-full h-full">
           {/* Header */}
-          <header className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-white/5 bg-white/80 dark:bg-[#0D1117]/80 backdrop-blur-md sticky top-0 z-10">
-            <div className="flex items-center gap-4">
-              <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5">
-                <Menu size={24} />
+          <header className="h-16 px-6 border-b border-gray-200 dark:border-white/5 flex items-center justify-between bg-white/80 dark:bg-[#161B22]/80 backdrop-blur-md sticky top-0 z-30">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300">
+                <Menu size={20} />
               </button>
-
               <div className={`flex bg-gray-100 dark:bg-[#161B22] p-1 rounded-lg ${isFeatureLocked('multi-agent') ? 'locked-overlay' : ''}`}>
                 <button
                   onClick={() => handleModeSwitch(ChatMode.MULTI)}
@@ -615,17 +635,66 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                     </div>
                   </div>
                 ) : (
-                  <div className="max-w-[85%] md:max-w-[70%] rounded-[20px] p-4 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 rounded-bl-none shadow-sm">
-                    <div className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-wider opacity-70">
+
+                  <div className="max-w-[90%] md:max-w-[80%] rounded-[20px] p-5 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 text-gray-800 dark:text-blue-50 rounded-bl-none shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider opacity-60 text-blue-600 dark:text-blue-400 select-none">
                       {msg.model}
                     </div>
-                    {msg.isImage ? (
-                      <img src={msg.content} alt="Generated" className="rounded-xl w-full max-w-sm border border-white/10" />
-                    ) : (
-                      <div className="prose dark:prose-invert text-sm leading-relaxed whitespace-pre-wrap">
-                        {msg.content}
-                      </div>
-                    )}
+                    {
+                      msg.isImage ? (
+                        <img src={msg.content} alt="Generated" className="rounded-xl w-full max-w-sm border border-white/10 shadow-lg" />
+                      ) : (
+                        <div className="markdown-content text-sm leading-relaxed">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              code({ node, inline, className, children, ...props }: any) {
+                                const match = /language-(\w+)/.exec(className || '');
+                                return !inline && match ? (
+                                  <div className="rounded-lg overflow-hidden my-3 shadow-md border border-gray-200 dark:border-white/10">
+                                    <div className="flex items-center justify-between px-3 py-1.5 bg-gray-100 dark:bg-[#1E1E1E] border-b border-gray-200 dark:border-white/5">
+                                      <span className="text-xs text-gray-500 font-mono">{match[1]}</span>
+                                      <div className="flex gap-1">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-red-400/20"></div>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/20"></div>
+                                        <div className="w-2.5 h-2.5 rounded-full bg-green-400/20"></div>
+                                      </div>
+                                    </div>
+                                    <SyntaxHighlighter
+                                      style={vscDarkPlus}
+                                      language={match[1]}
+                                      PreTag="div"
+                                      customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.85rem' }}
+                                      {...props}
+                                    >
+                                      {String(children).replace(/\n$/, '')}
+                                    </SyntaxHighlighter>
+                                  </div>
+                                ) : (
+                                  <code className={`${className} bg-gray-200 dark:bg-white/10 px-1.5 py-0.5 rounded text-xs font-mono text-pink-600 dark:text-pink-400`} {...props}>
+                                    {children}
+                                  </code>
+                                );
+                              },
+                              h1: ({ children }) => <h1 className="text-2xl font-bold mb-4 text-blue-900 dark:text-blue-100 border-b border-blue-200 dark:border-blue-800/50 pb-2">{children}</h1>,
+                              h2: ({ children }) => <h2 className="text-xl font-bold mb-3 mt-6 text-blue-800 dark:text-blue-200">{children}</h2>,
+                              h3: ({ children }) => <h3 className="text-lg font-bold mb-2 mt-4 text-blue-700 dark:text-blue-300">{children}</h3>,
+                              p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                              ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>,
+                              ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
+                              li: ({ children }) => <li className="pl-1 marker:text-blue-500">{children}</li>,
+                              blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-3 bg-blue-50 dark:bg-blue-900/20 py-2 pr-2 rounded-r">{children}</blockquote>,
+                              a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">{children}</a>,
+                              table: ({ children }) => <div className="overflow-x-auto my-4 rounded-lg border border-gray-200 dark:border-white/10"><table className="w-full text-left border-collapse">{children}</table></div>,
+                              th: ({ children }) => <th className="bg-gray-100 dark:bg-white/5 p-2 border-b border-gray-200 dark:border-white/10 font-bold text-xs uppercase tracking-wider">{children}</th>,
+                              td: ({ children }) => <td className="p-2 border-b border-gray-100 dark:border-white/5 text-sm">{children}</td>,
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      )
+                    }
                   </div>
                 )}
               </div>
@@ -640,10 +709,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
               </div>
             )}
             <div ref={messagesEndRef} />
-          </div>
+          </div >
 
           {/* Input Area */}
-          <div className="p-6 bg-transparent">
+          < div className="p-6 bg-transparent" >
             <div className="max-w-4xl mx-auto relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 flex gap-2">
                 <button
@@ -669,258 +738,262 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                 <Send size={18} />
               </button>
             </div>
-          </div>
-        </main>
+          </div >
+        </main >
 
         {/* Settings Modal */}
-        {settingsOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in overflow-hidden">
-            <div className="bg-white dark:bg-[#161B22] rounded-none sm:rounded-[24px] w-full h-full sm:h-auto sm:max-w-5xl sm:my-4 shadow-2xl border-0 sm:border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex flex-col md:flex-row overflow-hidden sm:max-h-[90vh]">
+        {
+          settingsOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in overflow-hidden">
+              <div className="bg-white dark:bg-[#161B22] rounded-none sm:rounded-[24px] w-full h-full sm:h-auto sm:max-w-5xl sm:my-4 shadow-2xl border-0 sm:border border-gray-200 dark:border-white/10 animate-in zoom-in-95 flex flex-col md:flex-row overflow-hidden sm:max-h-[90vh]">
 
-              {/* Settings Sidebar */}
-              <div className="w-full md:w-64 bg-gray-50 dark:bg-[#0D1117] border-b md:border-r md:border-b-0 border-gray-200 dark:border-white/5 p-4 flex-shrink-0">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold dark:text-white">Settings</h2>
-                  <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg dark:text-white transition-colors">
-                    <X size={20} />
-                  </button>
-                </div>
+                {/* Settings Sidebar */}
+                <div className="w-full md:w-64 bg-gray-50 dark:bg-[#0D1117] border-b md:border-r md:border-b-0 border-gray-200 dark:border-white/5 p-4 flex-shrink-0">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold dark:text-white">Settings</h2>
+                    <button onClick={() => setSettingsOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg dark:text-white transition-colors">
+                      <X size={20} />
+                    </button>
+                  </div>
 
-                <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide">
-                  {[
-                    { id: 'profile', icon: <UserIcon size={18} />, label: 'Profile' },
-                    { id: 'appearance', icon: <Palette size={18} />, label: 'Appearance' },
-                    { id: 'models', icon: <Bot size={18} />, label: 'AI Models' },
-                    { id: 'billing', icon: <CreditCard size={18} />, label: 'Billing' },
-                    { id: 'privacy', icon: <ShieldCheck size={18} />, label: 'Privacy' },
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveSettingsTab(tab.id)}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${activeSettingsTab === tab.id
+                  <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide">
+                    {[
+                      { id: 'profile', icon: <UserIcon size={18} />, label: 'Profile' },
+                      { id: 'appearance', icon: <Palette size={18} />, label: 'Appearance' },
+                      { id: 'models', icon: <Bot size={18} />, label: 'AI Models' },
+                      { id: 'billing', icon: <CreditCard size={18} />, label: 'Billing' },
+                      { id: 'privacy', icon: <ShieldCheck size={18} />, label: 'Privacy' },
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveSettingsTab(tab.id)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${activeSettingsTab === tab.id
                           ? 'bg-blue-500 text-white shadow-md'
                           : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/5'
-                        }`}
-                    >
-                      {tab.icon}
-                      <span className="hidden sm:inline">{tab.label}</span>
-                    </button>
-                  ))}
+                          }`}
+                      >
+                        {tab.icon}
+                        <span className="hidden sm:inline">{tab.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Settings Content */}
-              <div className="flex-1 flex flex-col relative bg-white dark:bg-[#161B22] overflow-y-auto">
-                <div className="p-4 sm:p-6 lg:p-8">
-                  {activeSettingsTab === 'profile' && (
-                    <ProfileSettings
-                      user={user}
-                      userProfile={userProfile}
-                      onSave={handleSaveProfile}
-                    />
-                  )}
+                {/* Settings Content */}
+                <div className="flex-1 flex flex-col relative bg-white dark:bg-[#161B22] overflow-y-auto">
+                  <div className="p-4 sm:p-6 lg:p-8">
+                    {activeSettingsTab === 'profile' && (
+                      <ProfileSettings
+                        user={user}
+                        userProfile={userProfile}
+                        onSave={handleSaveProfile}
+                      />
+                    )}
 
-                  {activeSettingsTab === 'appearance' && (
-                    <div className="space-y-6 max-w-3xl">
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2 dark:text-white">Appearance</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Customize your Jainn AI experience</p>
+                    {activeSettingsTab === 'appearance' && (
+                      <div className="space-y-6 max-w-3xl">
+                        <div>
+                          <h3 className="text-2xl font-bold mb-2 dark:text-white">Appearance</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Customize your Jainn AI experience</p>
 
-                        <div className={`p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 space-y-6 ${isFeatureLocked('custom-theme') ? 'locked-overlay' : ''}`}>
-                          <div>
-                            <div className="flex items-center justify-between mb-4">
-                              <h4 className="text-sm font-bold dark:text-white">Theme Color</h4>
-                              {isFeatureLocked('custom-theme') && (
-                                <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-1 rounded-full flex items-center gap-1">
-                                  <Crown size={12} /> Ultra Only
-                                </span>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-5 sm:grid-cols-8 gap-3">
-                              {['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#6366F1', '#14B8A6'].map((color) => (
-                                <button
-                                  key={color}
-                                  disabled={isFeatureLocked('custom-theme')}
-                                  className={`w-full aspect-square rounded-xl transition-all hover:scale-110 ${user.themeColor === color ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-[#161B22]' : ''
-                                    } ${isFeatureLocked('custom-theme') ? 'cursor-not-allowed opacity-50' : ''}`}
-                                  style={{ backgroundColor: color }}
-                                />
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <h4 className="text-sm font-bold dark:text-white mb-4">Chat Density</h4>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                              {['Compact', 'Normal', 'Comfortable'].map((density) => (
-                                <button
-                                  key={density}
-                                  className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:border-blue-500 dark:hover:border-blue-500 transition-colors text-sm font-medium dark:text-white"
-                                >
-                                  {density}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSettingsTab === 'models' && (
-                    <div className="space-y-6 max-w-3xl">
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2 dark:text-white">AI Models</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Configure default model and preferences</p>
-
-                        <div className="space-y-4">
-                          {[
-                            { name: 'Gemini 2.5 Flash', desc: 'Google\'s fastest model', color: 'blue', available: true },
-                            { name: 'LLaMA 3.1 70B', desc: 'Meta\'s open-source powerhouse', color: 'purple', available: true },
-                            { name: 'Mistral Large', desc: 'Efficient and precise', color: 'yellow', available: true },
-                          ].map((model) => (
-                            <div key={model.name} className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5 flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-full bg-${model.color}-500/20 flex items-center justify-center`}>
-                                  <Bot size={20} className={`text-${model.color}-600`} />
-                                </div>
-                                <div>
-                                  <h4 className="text-sm font-bold dark:text-white">{model.name}</h4>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">{model.desc}</p>
-                                </div>
-                              </div>
-                              {model.available ? (
-                                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full">Active</span>
-                              ) : (
-                                <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-3 py-1 rounded-full">Unavailable</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSettingsTab === 'billing' && (
-                    <div className="space-y-6 max-w-3xl">
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2 dark:text-white">Billing & Subscription</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage your plan and payment methods</p>
-
-                        <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-blue-500/30 mb-6">
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                          <div className={`p-6 bg-gray-50 dark:bg-[#0D1117] rounded-2xl border border-gray-200 dark:border-white/5 space-y-6 ${isFeatureLocked('custom-theme') ? 'locked-overlay' : ''}`}>
                             <div>
-                              <h4 className="text-lg font-bold dark:text-white flex items-center gap-2 mb-1">
-                                {user.tier === 'pro' && <Crown size={20} className="text-yellow-500" />}
-                                {user.tier === 'ultra' && <Crown size={20} className="text-purple-500" />}
-                                {user.tier.toUpperCase()} Plan
-                              </h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {user.tier === 'free' && 'Upgrade to unlock powerful features'}
-                                {user.tier === 'pro' && 'Next billing: January 14, 2025'}
-                                {user.tier === 'ultra' && 'Next billing: January 14, 2025'}
-                                {user.tier === 'guest' && 'Sign up to save your progress'}
-                              </p>
-                            </div>
-                            {user.tier !== 'ultra' && onUpgrade && (
-                              <button
-                                onClick={() => {
-                                  const targetPlan = user.tier === 'free' || user.tier === 'guest' ? 'pro' : 'ultra';
-                                  onUpgrade(targetPlan);
-                                  setSettingsOpen(false);
-                                }}
-                                className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap"
-                              >
-                                {user.tier === 'free' || user.tier === 'guest' ? 'Upgrade to Pro' : 'Upgrade to Ultra'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeSettingsTab === 'privacy' && (
-                    <div className="space-y-6 max-w-3xl">
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2 dark:text-white">Privacy & Security</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Control your data and privacy settings</p>
-
-                        <div className="space-y-4 mb-6">
-                          <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-3">
-                                <Bell size={18} className="text-blue-600 dark:text-blue-400" />
-                                <div>
-                                  <h4 className="text-sm font-bold dark:text-white">Notifications</h4>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Receive updates about your account</p>
-                                </div>
+                              <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-sm font-bold dark:text-white">Theme Color</h4>
+                                {isFeatureLocked('custom-theme') && (
+                                  <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-1 rounded-full flex items-center gap-1">
+                                    <Crown size={12} /> Ultra Only
+                                  </span>
+                                )}
                               </div>
-                              <button
-                                onClick={() => setNotifications(!notifications)}
-                                className={`relative w-12 h-6 rounded-full transition-colors ${notifications ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
-                                  }`}
-                              >
-                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifications ? 'translate-x-6' : 'translate-x-0'
-                                  }`} />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-3">
-                                <Globe size={18} className="text-green-600 dark:text-green-400" />
-                                <div>
-                                  <h4 className="text-sm font-bold dark:text-white">Data Sharing</h4>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">Help improve Jainn with usage data</p>
-                                </div>
+                              <div className="grid grid-cols-5 sm:grid-cols-8 gap-3">
+                                {['#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#EF4444', '#6366F1', '#14B8A6'].map((color) => (
+                                  <button
+                                    key={color}
+                                    disabled={isFeatureLocked('custom-theme')}
+                                    className={`w-full aspect-square rounded-xl transition-all hover:scale-110 ${user.themeColor === color ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-[#161B22]' : ''
+                                      } ${isFeatureLocked('custom-theme') ? 'cursor-not-allowed opacity-50' : ''}`}
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
                               </div>
-                              <button
-                                onClick={() => setDataSharing(!dataSharing)}
-                                className={`relative w-12 h-6 rounded-full transition-colors ${dataSharing ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
-                                  }`}
-                              >
-                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${dataSharing ? 'translate-x-6' : 'translate-x-0'
-                                  }`} />
-                              </button>
+                            </div>
+
+                            <div>
+                              <h4 className="text-sm font-bold dark:text-white mb-4">Chat Density</h4>
+                              <div className="flex flex-col sm:flex-row gap-3">
+                                {['Compact', 'Normal', 'Comfortable'].map((density) => (
+                                  <button
+                                    key={density}
+                                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 dark:border-white/10 hover:border-blue-500 dark:hover:border-blue-500 transition-colors text-sm font-medium dark:text-white"
+                                  >
+                                    {density}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {activeSettingsTab === 'models' && (
+                      <div className="space-y-6 max-w-3xl">
+                        <div>
+                          <h3 className="text-2xl font-bold mb-2 dark:text-white">AI Models</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Configure default model and preferences</p>
+
+                          <div className="space-y-4">
+                            {[
+                              { name: 'Gemini 2.5 Flash', desc: 'Google\'s fastest model', color: 'blue', available: true },
+                              { name: 'LLaMA 3.1 70B', desc: 'Meta\'s open-source powerhouse', color: 'purple', available: true },
+                              { name: 'Mistral Large', desc: 'Efficient and precise', color: 'yellow', available: true },
+                            ].map((model) => (
+                              <div key={model.name} className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className={`w-10 h-10 rounded-full bg-${model.color}-500/20 flex items-center justify-center`}>
+                                    <Bot size={20} className={`text-${model.color}-600`} />
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-bold dark:text-white">{model.name}</h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{model.desc}</p>
+                                  </div>
+                                </div>
+                                {model.available ? (
+                                  <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 px-3 py-1 rounded-full">Active</span>
+                                ) : (
+                                  <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-3 py-1 rounded-full">Unavailable</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeSettingsTab === 'billing' && (
+                      <div className="space-y-6 max-w-3xl">
+                        <div>
+                          <h3 className="text-2xl font-bold mb-2 dark:text-white">Billing & Subscription</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Manage your plan and payment methods</p>
+
+                          <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-blue-500/30 mb-6">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                              <div>
+                                <h4 className="text-lg font-bold dark:text-white flex items-center gap-2 mb-1">
+                                  {user.tier === 'pro' && <Crown size={20} className="text-yellow-500" />}
+                                  {user.tier === 'ultra' && <Crown size={20} className="text-purple-500" />}
+                                  {user.tier.toUpperCase()} Plan
+                                </h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {user.tier === 'free' && 'Upgrade to unlock powerful features'}
+                                  {user.tier === 'pro' && 'Next billing: January 14, 2025'}
+                                  {user.tier === 'ultra' && 'Next billing: January 14, 2025'}
+                                  {user.tier === 'guest' && 'Sign up to save your progress'}
+                                </p>
+                              </div>
+                              {user.tier !== 'ultra' && onUpgrade && (
+                                <button
+                                  onClick={() => {
+                                    const targetPlan = user.tier === 'free' || user.tier === 'guest' ? 'pro' : 'ultra';
+                                    onUpgrade(targetPlan);
+                                    setSettingsOpen(false);
+                                  }}
+                                  className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors whitespace-nowrap"
+                                >
+                                  {user.tier === 'free' || user.tier === 'guest' ? 'Upgrade to Pro' : 'Upgrade to Ultra'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeSettingsTab === 'privacy' && (
+                      <div className="space-y-6 max-w-3xl">
+                        <div>
+                          <h3 className="text-2xl font-bold mb-2 dark:text-white">Privacy & Security</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Control your data and privacy settings</p>
+
+                          <div className="space-y-4 mb-6">
+                            <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-3">
+                                  <Bell size={18} className="text-blue-600 dark:text-blue-400" />
+                                  <div>
+                                    <h4 className="text-sm font-bold dark:text-white">Notifications</h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Receive updates about your account</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => setNotifications(!notifications)}
+                                  className={`relative w-12 h-6 rounded-full transition-colors ${notifications ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                                    }`}
+                                >
+                                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${notifications ? 'translate-x-6' : 'translate-x-0'
+                                    }`} />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="p-4 bg-gray-50 dark:bg-[#0D1117] rounded-xl border border-gray-200 dark:border-white/5">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-3">
+                                  <Globe size={18} className="text-green-600 dark:text-green-400" />
+                                  <div>
+                                    <h4 className="text-sm font-bold dark:text-white">Data Sharing</h4>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Help improve Jainn with usage data</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => setDataSharing(!dataSharing)}
+                                  className={`relative w-12 h-6 rounded-full transition-colors ${dataSharing ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+                                    }`}
+                                >
+                                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${dataSharing ? 'translate-x-6' : 'translate-x-0'
+                                    }`} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
-        {/* Logout Confirmation Modal - MOVED INSIDE RETURN */}
-        {logoutConfirmOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
-            <div className="bg-white dark:bg-[#161B22] rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95">
-              <h3 className="text-xl font-bold mb-2 dark:text-white">Confirm Logout</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to log out of your account?</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setLogoutConfirmOpen(false)}
-                  className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium dark:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={onLogout}
-                  className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-colors"
-                >
-                  Logout
-                </button>
+        {/* Logout Confirmation Modal */}
+        {
+          logoutConfirmOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white dark:bg-[#161B22] rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-gray-200 dark:border-white/10 animate-in zoom-in-95">
+                <h3 className="text-xl font-bold mb-2 dark:text-white">Confirm Logout</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to log out of your account?</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setLogoutConfirmOpen(false)}
+                    className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 font-medium dark:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={onLogout}
+                    className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
 
-      </div>
+      </div >
     </>
   );
 };

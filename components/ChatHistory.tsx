@@ -4,37 +4,23 @@ import { ChatSession } from '../types';
 import { getChatSessions, deleteChatSession, renameChatSession } from '../lib/chatHistory';
 
 interface ChatHistoryProps {
-  userId: string;
-  onSelectChat: (session: ChatSession) => void;
+  sessions: ChatSession[];
   currentSessionId?: string;
+  onSelectChat: (session: ChatSession) => void;
+  onDeleteChat: (sessionId: string) => void;
+  onRenameChat: (sessionId: string, newTitle: string) => void;
 }
 
-export const ChatHistory: React.FC<ChatHistoryProps> = ({ 
-  userId, 
-  onSelectChat, 
-  currentSessionId 
+export const ChatHistory: React.FC<ChatHistoryProps> = ({
+  sessions,
+  currentSessionId,
+  onSelectChat,
+  onDeleteChat,
+  onRenameChat
 }) => {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadSessions();
-  }, [userId]);
-
-  const loadSessions = async () => {
-    try {
-      setLoading(true);
-      const data = await getChatSessions(userId);
-      setSessions(data);
-    } catch (error) {
-      console.error('Failed to load chat sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleStartEdit = (session: ChatSession, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -45,16 +31,9 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   const handleSaveEdit = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!editTitle.trim()) return;
-    
-    try {
-      await renameChatSession(sessionId, userId, editTitle.trim());
-      await loadSessions();
-      setEditingId(null);
-      setEditTitle('');
-    } catch (error) {
-      console.error('Failed to rename chat:', error);
-      alert('Failed to rename chat. Please try again.');
-    }
+    onRenameChat(sessionId, editTitle.trim());
+    setEditingId(null);
+    setEditTitle('');
   };
 
   const handleCancelEdit = (e: React.MouseEvent) => {
@@ -65,30 +44,12 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
 
   const handleDelete = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to delete this chat? This action cannot be undone.')) return;
 
-    try {
-      setDeletingId(sessionId);
-      await deleteChatSession(sessionId, userId);
-      await loadSessions();
-    } catch (error) {
-      console.error('Failed to delete chat:', error);
-      alert('Failed to delete chat. Please try again.');
-    } finally {
-      setDeletingId(null);
-    }
+    setDeletingId(sessionId);
+    await onDeleteChat(sessionId);
+    setDeletingId(null);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader className="animate-spin text-blue-500" size={24} />
-      </div>
-    );
-  }
 
   if (sessions.length === 0) {
     return (
@@ -104,11 +65,10 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
         <div
           key={session.id}
           onClick={() => !editingId && onSelectChat(session)}
-          className={`group relative p-3 rounded-xl transition-all cursor-pointer ${
-            currentSessionId === session.id
+          className={`group relative p-3 rounded-xl transition-all cursor-pointer ${currentSessionId === session.id
               ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400'
-          } ${deletingId === session.id ? 'opacity-50 pointer-events-none' : ''}`}
+            } ${deletingId === session.id ? 'opacity-50 pointer-events-none' : ''}`}
         >
           {editingId === session.id ? (
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -148,7 +108,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
                   </p>
                 </div>
               </div>
-              
+
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => handleStartEdit(session, e)}
