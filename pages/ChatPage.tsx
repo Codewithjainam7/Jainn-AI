@@ -424,10 +424,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
 
         {/* Sidebar */}
         <aside className={`
-        fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-[#161B22] border-r border-gray-200 dark:border-white/5 transform transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static flex flex-col
+        fixed inset-y-0 left-0 z-40 w-72 bg-white/80 dark:bg-[#161B22]/80 backdrop-blur-xl border-r border-gray-200/50 dark:border-white/5 transform transition-transform duration-500 cubic-bezier(0.32, 0.72, 0, 1)
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static flex flex-col shadow-[20px_0_40px_rgba(0,0,0,0.1)]
       `}>
-          <div className="p-6 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+          <div className="p-6 border-b border-gray-100/50 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-3 cursor-pointer" onClick={onHome}>
               <Logo size={28} />
               <span className="font-bold text-lg">Jainn AI</span>
@@ -437,11 +437,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
             </button>
           </div>
 
-          <div className="p-4 space-y-2">
-            <Button onClick={handleNewChat} variant="secondary" className="w-full justify-start text-gray-700 dark:text-gray-200 border-gray-200 dark:border-white/10 hover:border-blue-500">
-              <Plus size={18} /> New Chat
+          <div className="p-4 space-y-3">
+            <Button onClick={handleNewChat} variant="secondary" className="w-full justify-start text-gray-700 dark:text-gray-200 bg-gray-50/50 dark:bg-white/5 border-gray-200/50 dark:border-white/5 hover:border-blue-500/50 rounded-[20px] h-12 px-5 font-semibold shadow-sm hover:shadow-md transition-all">
+              <Plus size={20} className="mr-2 text-blue-500" /> New Chat
             </Button>
-            <Button onClick={onHome} variant="ghost" className="w-full justify-start px-4 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">
+            <Button onClick={onHome} variant="ghost" className="w-full justify-start px-5 h-12 rounded-[20px] text-gray-600 dark:text-gray-400 hover:bg-gray-100/50 dark:hover:bg-white/5 font-medium transition-all">
               <Home size={18} /> Home
             </Button>
           </div>
@@ -636,13 +636,18 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
                   </div>
                 ) : (
 
-                  <div className="max-w-[90%] md:max-w-[80%] rounded-[20px] p-5 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 text-gray-800 dark:text-blue-50 rounded-bl-none shadow-sm overflow-hidden">
-                    <div className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider opacity-60 text-blue-600 dark:text-blue-400 select-none">
-                      {msg.model}
+                  <div className="max-w-[90%] md:max-w-[85%] rounded-[24px] p-6 bg-white dark:bg-[#161B22] border border-gray-200 dark:border-white/10 shadow-lg rounded-bl-sm overflow-hidden group hover:shadow-md transition-all duration-300">
+                    <div className="flex items-center gap-3 mb-6 opacity-80 group-hover:opacity-100 transition-opacity select-none border-b border-gray-100 dark:border-white/5 pb-3">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-cyan-300 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
+                        AI
+                      </div>
+                      <span className="text-sm font-bold uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 font-sans">
+                        {msg.model}
+                      </span>
                     </div>
                     {
                       msg.isImage ? (
-                        <img src={msg.content} alt="Generated" className="rounded-xl w-full max-w-sm border border-white/10 shadow-lg" />
+                        <img src={msg.content} alt="Generated" className="rounded-[24px] w-full max-w-md border border-white/20 shadow-2xl transition-transform hover:scale-[1.01]" />
                       ) : (
                         <div className="markdown-content text-sm leading-relaxed">
                           <ReactMarkdown
@@ -709,16 +714,21 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user, onLogout, onHome, onUp
               </div>
             ))}
             {isTyping && messages.length > 0 && String(messages[messages.length - 1].content).length === 0 && (
-              <div className="flex justify-start animate-in fade-in duration-300">
-                <div className="max-w-[80%] rounded-[20px] p-6 bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/5 rounded-bl-none shadow-sm space-y-3">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
-                    <span className="text-xs font-bold uppercase tracking-widest text-blue-500 animate-pulse">Synthesizing...</span>
+              <div className="flex justify-start animate-in fade-in duration-500 slide-in-from-bottom-2">
+                <div className="max-w-[80%] rounded-[24px] p-6 bg-white/50 dark:bg-[#1C2128]/50 border border-blue-500/20 backdrop-blur-md rounded-bl-sm shadow-lg space-y-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="relative">
+                      <div className="w-3 h-3 rounded-full bg-blue-500 animate-ping absolute opacity-75"></div>
+                      <div className="w-3 h-3 rounded-full bg-blue-500 relative shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-widest text-blue-500 animate-pulse">
+                      {currentModel} is thinking...
+                    </span>
                   </div>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-blue-200 dark:bg-blue-500/20 rounded w-3/4 animate-pulse"></div>
-                    <div className="h-3 bg-blue-200 dark:bg-blue-500/20 rounded w-1/2 animate-pulse delay-75"></div>
-                    <div className="h-3 bg-blue-200 dark:bg-blue-500/20 rounded w-5/6 animate-pulse delay-150"></div>
+                  <div className="space-y-3">
+                    <div className="h-2 bg-gradient-to-r from-blue-500/20 to-transparent rounded-full w-3/4 animate-pulse"></div>
+                    <div className="h-2 bg-gradient-to-r from-blue-500/20 to-transparent rounded-full w-1/2 animate-pulse delay-75"></div>
+                    <div className="h-2 bg-gradient-to-r from-blue-500/20 to-transparent rounded-full w-5/6 animate-pulse delay-150"></div>
                   </div>
                 </div>
               </div>
